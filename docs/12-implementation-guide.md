@@ -1,30 +1,61 @@
-# Implementation Guide: Staged Rollout
+# Implementation Guide
 
-> The standards in this document look like a lot to adopt at once. They aren't meant to be. Agents can't reason about a gradual adoption plan — they need the constraints that exist today to be clear and enforced, and they need new constraints to appear incrementally as the system matures. A staged rollout matches how real teams adopt structure: start with the highest-leverage constraints (module boundaries, interfaces), then layer on automation as patterns emerge from actual PR review.
+> These standards look like a lot to adopt at once. They aren't meant to be. Each stage builds on the last, and each pays for itself before the next one starts. The ordering matters — you can't automate enforcement of rules that don't exist yet, and you can't write meaningful rules until you've seen what actually breaks.
 
-You don't build all of this at once. A staged approach that works:
+## Staged Adoption
 
-**Week 1 — Structure**
-- Define module boundaries. No imports between sibling modules.
-- Write the interfaces file before building any service.
-- Give every module a README with explicit ownership and non-ownership.
+### Stage 1: Boundaries
 
-**Weeks 1–2 — Tests**
+Before writing any feature code, establish where things go.
+
+- Define module boundaries. Name the modules. Draw the lines.
+- Write `interfaces.py` with method signatures — before any `service.py` exists.
+- Write a README for each module: what it owns, what it does NOT own.
+- No imports between sibling modules. This is the one constraint that matters most early on. If you enforce nothing else, enforce this.
+
+This is the highest-leverage stage. Everything downstream depends on boundaries being clear. Without them, every subsequent stage is built on sand.
+
+### Stage 2: Tests
+
+Once boundaries exist, make them verifiable.
+
 - Require tests before implementation is considered done.
-- Use isolated in-memory databases per module.
-- Make tests runnable independently per module.
+- Tests run against the same database your production uses (not a substitute).
+- Tests are runnable per module in isolation.
+- Test files follow a predictable naming convention across all modules.
 
-**Weeks 2–3 — Automation**
+Tests are the agent's feedback loop. Without them, an agent produces code that compiles and returns something plausible — but whether it's correct is unknowable without manually running the full system.
+
+### Stage 3: Automation
+
+Once you've reviewed a few PRs, you know what keeps going wrong. Automate those checks.
+
 - Add a pre-write hook that blocks cross-module imports.
 - Add a post-edit hook that auto-runs the affected module's test suite.
-- Add a pre-commit check for the most common pattern violations.
+- Add a pre-commit check for the most common pattern violations you've seen in review.
 
-**Ongoing — Agents and Rules**
-- Write agent personas for common tasks (implementer, reviewer).
-- Give each persona narrow scope and specific tools.
-- Track what keeps appearing in PR reviews. Document as rules. Automate enforcement.
+Start with the violations you've already caught manually. Each hook is a lesson learned, encoded permanently. Don't try to anticipate every possible violation — automate what you've already seen, and add more as new patterns emerge.
 
-The investment pays off earlier than expected. The first time a guardrail stops an agent from making a mistake you've already fixed once before, it pays for itself.
+### Stage 4: Team Structure
+
+Once boundaries, tests, and automation are in place, formalize the agent roles.
+
+- Define agent personas with specific responsibilities and tool restrictions.
+- Establish the iterative review cycle: implement → review → fix → review → commit.
+- Separate test file ownership so agents can work in parallel without conflicts.
+- Track what keeps appearing in review. Convert repeated feedback into rules. Automate the rules into hooks.
+
+This is the flywheel. Each rotation makes the next one faster: fewer violations reach review, reviews get shorter, the human's job shifts from catching problems to improving the system.
+
+### The Compounding Effect
+
+Each stage makes the next one cheaper:
+- **Boundaries** make tests meaningful (you know what to test in isolation).
+- **Tests** make automation possible (you know what "correct" looks like).
+- **Automation** makes team structure sustainable (agents self-correct on mechanical violations).
+- **Team structure** makes boundaries stronger (adversarial review catches violations that hooks miss).
+
+Skip a stage and the ones above it are fragile. Do them in order and each one is load-bearing.
 
 ---
 
@@ -46,29 +77,23 @@ Human understands architecture
 
 Break any link and the system degrades. Agents coding without human review produces drift. Humans reviewing without writing rules means the same conversations repeat forever. Humans giving commands without understanding the architecture produces large, disruptive PRs. Automated rules without human evolution become stale.
 
-The technology is not the bottleneck. The discipline is.
-
-Module isolation, interface-first design, TDD, bounded contexts — these have been in the software engineering canon for decades. What's new: AI agents don't just benefit from good architecture. They require it.
-
-A human engineer can ask a question when confused, build up context over months, sense when something feels off. An agent starts fresh every session, has no institutional memory, and will confidently implement whatever the local context suggests — even if the global context would say otherwise.
-
-When you build for AI agents, you're not adding something new on top of good engineering. You're taking good engineering seriously enough to make it structural, automatic, and enforced — rather than aspirational, documented, and hoped-for.
-
-The gap between a demo and a production system is exactly that: structure that holds even when nobody is watching, reminding, or reviewing.
-
 ---
 
 ## The Punchline
 
 If you read this document and thought "this is just good engineering" — you're right.
 
-TDD, module isolation, interface contracts, code review, ownership checks — these have been in the software engineering canon for decades. None of what's described here is new. What's new is the consequence of not doing it.
+TDD, module isolation, interface contracts, code review, ownership checks — none of this is new. Veteran engineers figured these out decades ago, often the hard way. The practices described here aren't inventions — they're lessons that survived because ignoring them produced real failures in real systems.
+
+What's new is the consequence of not following them.
 
 Human engineers can get away with knowing these practices without enforcing them. They carry context across sessions, build intuition over months, sense when something feels off. They can bend the rules and recover.
 
 AI agents can't. They start fresh every session. They don't sense architectural drift. They don't push back on commands that contradict existing contracts. They will confidently build the wrong thing in the wrong place, at speed, and with no hesitation.
 
 The standards that human teams aspire to but let slide — agents require structurally. The shortcuts that humans recover from — agents compound. The discipline that humans can defer — agents need now.
+
+Veterans who already follow these practices will find AI agents amplify their effectiveness — the structure they built over years becomes the scaffolding that makes agents productive from day one. Teams without that structure will hit the three-month wall faster than any human team ever could, because agents accumulate technical debt at machine speed.
 
 AI agents don't need a new kind of engineering. They need the engineering we've always known was right, actually enforced — not aspirational, not documented-and-hoped-for, but structural, automatic, and inescapable.
 
