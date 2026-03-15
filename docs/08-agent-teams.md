@@ -65,11 +65,17 @@ For large modules, split `test_service_*.py` further by domain — `test_service
 
 ### Agent Context Management
 
-Agents accumulate context across tasks. By the fifth task in a session, an agent carries context from tasks one through four — most of it irrelevant. This wastes tokens and degrades focus.
+Agents accumulate context across tasks. By the fifth task in a session, an agent carries context from tasks one through four — most of it irrelevant. This degrades quality in three measurable ways:
 
-**Kill agents between batches.** After each commit, shut down all agents and spawn fresh ones for the next batch. Each new agent gets only the context it needs for its specific task — the relevant files, the failing tests, the issue description. Nothing from previous batches.
+1. **Performance.** Shorter context produces better model output. A focused agent with 2K tokens of relevant context outperforms a bloated agent with 50K tokens of accumulated history. The signal-to-noise ratio drops with every task.
+2. **Cost.** Every token in the context window is billed on every subsequent message. An agent carrying 40K tokens of stale context from previous tasks is burning money on irrelevant information with every interaction.
+3. **Speed.** Larger contexts take longer to process. Fresh agents with minimal context respond faster.
 
-This is counterintuitive — it feels wasteful to throw away context. But the context an agent accumulates is mostly noise. A fresh agent with a precise prompt outperforms a stale agent with a long history.
+**Kill agents between batches.** After each commit, shut down all agents and spawn fresh ones for the next batch. Each new agent gets only the context it needs — the relevant files, the failing tests, the issue description. Nothing from previous batches.
+
+The team lead (human or coordinator) retains the high-level context: what's been done, what's next, what decisions were made. The sub-agents stay small and focused. This architecture — persistent lead with ephemeral workers — mirrors how human teams work: the tech lead carries institutional knowledge while individual contributors focus on their current task.
+
+This is counterintuitive — it feels wasteful to throw away context. But the context an agent accumulates is mostly noise. A fresh agent with a precise prompt outperforms a stale agent with a long history — better output, lower cost, faster response.
 
 ### The "Wait for All Reviewers" Pattern
 
