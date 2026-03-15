@@ -1,5 +1,19 @@
 # Standards 3–8: The Structural Guidelines
 
+> Agents need predictable navigation. When every module has a different file layout, different naming conventions, and different patterns, agents waste tokens reasoning about where things are instead of doing useful work. Predictable structure means an agent that understands one module understands all of them — and unpredictable structure means every task starts with an exploration phase that produces inconsistent results.
+
+> **Standards** (must follow):
+> - Predictable, uniform module structure across the entire codebase
+> - Interfaces defined before implementation (interface-first development)
+> - Tests as ground truth — written before implementation, run automatically
+> - Guardrails enforced structurally (hooks that block violations), not just documented as guidelines
+>
+> **Guidelines** (recommended):
+> - Specific file layout (the 5-file module pattern shown below is a strong default)
+> - README template and content conventions
+> - Test fixture patterns and file splitting thresholds
+> - Agent role separation and scope boundaries
+
 These are drawn from production systems. Examples use a generic task management app — `task`, `user`, `notification` modules. Simple enough to be obvious, concrete enough to be useful.
 
 ### 1. Predictable Structure Over Clever Structure

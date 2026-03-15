@@ -1,5 +1,17 @@
 # Standard 12: Build for Extractability from Day One
 
+> Agents can't reason about future architecture. They optimize for what works now, in the current session, with the current context. If module boundaries aren't enforced through interfaces and dependency injection from day one, agents will create direct couplings that make future extraction expensive. By the time you need microservices, the codebase is too entangled to extract — not because the agents were wrong, but because nothing prevented them from taking shortcuts that felt locally correct.
+
+> **Standards** (must follow):
+> - Interface-based dependency injection from day one — every service implements a Protocol
+> - Cross-module dependencies wired at a single composition root
+> - Modules use opaque identifiers, not direct ORM foreign keys across module boundaries
+>
+> **Guidelines** (recommended):
+> - Specific DI framework or composition root pattern
+> - How to structure the composition root for testability
+> - When to actually extract a module to a service (scale signals)
+
 The biggest objection to careful early architecture is "we're too small for this." In a narrow sense, that's true. A small team doesn't need microservices.
 
 But the decisions you make in a modular monolith today are the same decisions you'd make in a microservices architecture. They're not premature — they're early.

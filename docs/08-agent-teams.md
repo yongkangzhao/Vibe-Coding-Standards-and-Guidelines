@@ -1,5 +1,18 @@
 # Standard 13: Agent Teams — Coordinated Multi-Agent Development
 
+> A single agent doing everything — writing code, reviewing architecture, testing edge cases, thinking adversarially — produces inconsistent quality. It optimizes for the last thing it was asked to do and loses focus on the others. Worse, an agent that can both write code and review its own code will approve its own work. Separating roles with enforced tool restrictions (a reviewer that literally cannot write code) produces higher-quality output than any single agent, regardless of how good the prompting is.
+
+> **Standards** (must follow):
+> - Separate agent roles with enforced tool restrictions (reviewers cannot write production code)
+> - Iterative review cycles — cycle until both test engineer and adversary report clean, not one-shot
+> - File ownership to prevent write conflicts between parallel agents
+>
+> **Guidelines** (recommended):
+> - Five-role team structure (lead, planner, test engineer, engineer, adversary)
+> - File naming convention for role ownership (`test_service_*` vs `test_security_*`)
+> - Context management strategy (kill agents between batches, fresh context per task)
+> - "Wait for all reviewers" batching pattern
+
 Standard 7 said "separate roles, separate agents." This standard describes how those agents actually work together at scale — the team structure, the communication protocol, and the operational patterns that emerge when multiple agents collaborate on real codebases.
 
 ### The Agent Team

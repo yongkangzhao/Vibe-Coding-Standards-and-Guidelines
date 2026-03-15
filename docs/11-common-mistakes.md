@@ -1,5 +1,16 @@
 # Appendix: Common Mistakes That Become Rules
 
+> Agents repeat the same mistakes across sessions because they have no memory of previous feedback. A mistake caught in PR review on Monday will reappear on Tuesday from a fresh agent session. The only way to break this cycle is to convert repeated PR feedback into persistent, automated rules that fire before the code is committed — transforming human review effort into structural enforcement that works across every session, for every agent, permanently.
+
+> **Standards** (must follow):
+> - When the same mistake appears in two or more PRs, codify it as a rule
+> - Rules must be enforced automatically (hooks, linters) where possible
+>
+> **Guidelines** (recommended):
+> - Specific rule format and location (`.claude/rules/` or equivalent)
+> - Automation approach (pre-commit, pre-push, post-edit hooks)
+> - Reference the PRs where the pattern was first observed for traceability
+
 These patterns appeared repeatedly in production codebases using AI agents. Each was first caught in PR review, then codified as a rule, then (where possible) automated as a hook.
 
 ### 1. Savepoints Must Wrap the Entire Mutation

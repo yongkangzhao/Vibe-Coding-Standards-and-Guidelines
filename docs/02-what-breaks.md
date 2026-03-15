@@ -1,5 +1,7 @@
 # What Breaks Without These Standards
 
+> Every failure mode described here exists in human-written codebases too. What's different with AI agents is the speed and confidence. Agents amplify existing chaos — they produce large volumes of plausible-looking code that compounds structural problems faster than any human team could. Feature duplication, logic leakage, and architectural drift that would take a human team months to accumulate can happen in days when agents are involved, because each agent session starts fresh with no memory of decisions made in previous sessions.
+
 Before getting to solutions, let's name the failure modes precisely, because they matter:
 
 **Feature duplication.** The same logic gets implemented in multiple places. A function that fetches a user's active subscription exists in three files, each written at a different time, each slightly different. Billing logic changes. One of them gets updated.

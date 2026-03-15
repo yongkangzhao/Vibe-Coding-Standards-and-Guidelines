@@ -1,5 +1,16 @@
 # Standards 10–11: The Human Standards
 
+> Agents don't push back on bad commands. If a human tells an agent to build a feature in the wrong module, the agent builds it there — faithfully, at scale, and at speed. The human role in AI-assisted development is no longer primarily writing code. It's understanding the system well enough to direct agents correctly, and maintaining the structural integrity that agents depend on but cannot maintain themselves.
+
+> **Standards** (must follow):
+> - Main branch is sacred — no direct pushes, everything through PRs with human review
+> - Every PR requires human review before merge
+>
+> **Guidelines** (recommended):
+> - Specific review process and checklist
+> - Rule-writing cadence (convert repeated PR feedback into automated rules)
+> - How to invest time savings (planning and review, not more coding)
+
 This is the part that gets skipped in most discussions of AI-assisted development, and it's where things fall apart in practice.
 
 ### Main Branch Is Sacred

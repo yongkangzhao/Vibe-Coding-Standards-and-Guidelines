@@ -1,5 +1,7 @@
 # What This Document Is — And What It Is Not
 
+> Most vibe coding guides tell you how to prompt better. None of them tell you what to build before you start prompting. AI agents start fresh every session, carry no institutional memory, and will confidently build the wrong thing in the wrong place if the codebase doesn't structurally prevent it. This document exists because the gap between "good prompting advice" and "a codebase that survives month three" is entirely structural — and nobody else is naming the structure.
+
 Vibe coding has attracted a wave of guides, best practices, and community discussion. The picture that emerges from reading across formal guides, engineering blogs, and developer communities is consistent — and consistently incomplete.
 
 ### What the Existing Guides Get Right

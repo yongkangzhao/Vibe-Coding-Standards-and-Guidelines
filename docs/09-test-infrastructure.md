@@ -1,5 +1,18 @@
 # Standard 14: Test Infrastructure as Architecture
 
+> Tests are the only feedback loop an agent has. When tests run against SQLite in-memory while production runs PostgreSQL, agents receive false confirmation that their code works — `SELECT FOR UPDATE` silently ignored, UUID handling differs, array types missing. The agent sees green and moves on. The bug ships to production. Test infrastructure that doesn't match production is worse than no tests at all, because it produces false confidence at machine speed.
+
+> **Standards** (must follow):
+> - Test against your production database (not a substitute like SQLite for PostgreSQL)
+> - Predictable test file structure that mirrors module structure
+> - No test file over 500 lines — split by domain when it grows
+>
+> **Guidelines** (recommended):
+> - Testcontainers or equivalent for disposable database instances per test session
+> - SQLite as an optional `--quick` fast path for local iteration (not CI default)
+> - Specific hook implementations (pre-write, pre-commit, pre-push, post-edit)
+> - Suppression with traceability (`# nocheck` requires issue reference)
+
 Tests are ground truth (Standard 4). But test infrastructure itself needs architectural discipline. Without it, test files become the most disorganized part of the codebase — the place where "just add it here" accumulates fastest.
 
 ### Test Your Production Database, Not a Substitute

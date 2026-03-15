@@ -1,5 +1,16 @@
 # Standard 1: Start With a Modular Monolith
 
+> AI agents need two things that most architectures don't provide simultaneously: full visibility into the codebase, and enforced boundaries that prevent them from putting code wherever seems locally reasonable. Without full visibility, agents can't find existing implementations. Without enforced boundaries, agents duplicate logic, leak business rules across layers, and make architectural decisions that contradict ones already made in other parts of the codebase.
+
+> **Standards** (must follow):
+> - Start with a modular monolith architecture for AI-assisted projects
+> - Enforce module boundaries structurally (not just by convention)
+> - Maintain a single codebase so agents have full visibility
+>
+> **Guidelines** (recommended):
+> - Specific module layout and file naming can vary by stack
+> - Evaluate other architectures only when scale demands it (not before)
+
 There are many ways to structure a software project. Microservices, serverless, classic monolith, MVC, event-driven — each has legitimate use cases. But for a vibe-coded project specifically, the choice matters more than usual because AI agents interact with codebases differently than humans do: no accumulated context, bounded sessions, no institutional memory. They need explicit structure.
 
 Here's how the common options compare:
