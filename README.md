@@ -55,12 +55,14 @@ This repo also ships the standards as a set of six **Claude Code skills** that t
 | [`guardrails-and-rule-flywheel`](skills/guardrails-and-rule-flywheel/SKILL.md) | Structural enforcement over docs; PR gate; repeated feedback → automated rules | 7, 11, 12 |
 | [`data-and-state-safety`](skills/data-and-state-safety/SKILL.md) | Soft-delete + legal erasure, and the recurring persistence pitfalls | 16, App. A |
 
-Each skill keeps its `SKILL.md` body language-neutral and puts concrete examples in `references/backend.md` (Python / SQLAlchemy / pytest) and `references/frontend.md` (TypeScript / React / vitest).
+Each skill is a self-contained folder under [`skills/`](skills/) — a `SKILL.md` plus a `references/` directory. The body stays language-neutral; concrete examples live in `references/backend.md` (Python / SQLAlchemy / pytest) and `references/frontend.md` (TypeScript / React / vitest).
 
-**Install:**
+**Use them:** copy (or symlink) any `skills/<name>/` folder into a directory Claude Code reads:
 
-- **As a plugin (all six):** in Claude Code, use the `/plugin` command to add this repository as a plugin marketplace, then install the `vibe-coding-standards` plugin.
-- **Per skill:** copy any `skills/<name>/` directory into `~/.claude/skills/` (available in every project) or a project's `.claude/skills/` (that project only).
+- `~/.claude/skills/` — available in every project you work on, or
+- a project's `.claude/skills/` — that project only.
+
+Claude Code auto-discovers each `SKILL.md` from there — no plugin or install step.
 
 ---
 
