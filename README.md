@@ -42,4 +42,26 @@ The central premise: AI agents amplify whatever is already true about a codebase
 
 ---
 
+## Use these standards as skills
+
+This repo also ships the standards as a set of six **Claude Code skills** that trigger automatically during development — stack-agnostic, for frontend and backend alike. The prose above is the rationale; the skills are the operational version an agent applies while it works.
+
+| Skill | What it enforces | Standards |
+|---|---|---|
+| [`architecture-and-module-boundaries`](skills/architecture-and-module-boundaries/SKILL.md) | Modular-monolith structure, domain modules, enforced boundaries, day-one extractability | 1–3, 13 |
+| [`interface-first-development`](skills/interface-first-development/SKILL.md) | READMEs as specs + contracts before code; the Spec → Interface → Tests → Implementation loop | 4, 5, 10 |
+| [`tests-as-ground-truth`](skills/tests-as-ground-truth/SKILL.md) | Tests as the executable spec, run against real (not substitute) infrastructure | 6, 15 |
+| [`agent-team-review-loop`](skills/agent-team-review-loop/SKILL.md) | Bounded tasks, tool-restricted roles, iterate-until-clean review | 8, 9, 14 |
+| [`guardrails-and-rule-flywheel`](skills/guardrails-and-rule-flywheel/SKILL.md) | Structural enforcement over docs; PR gate; repeated feedback → automated rules | 7, 11, 12 |
+| [`data-and-state-safety`](skills/data-and-state-safety/SKILL.md) | Soft-delete + legal erasure, and the recurring persistence pitfalls | 16, App. A |
+
+Each skill keeps its `SKILL.md` body language-neutral and puts concrete examples in `references/backend.md` (Python / SQLAlchemy / pytest) and `references/frontend.md` (TypeScript / React / vitest).
+
+**Install:**
+
+- **As a plugin (all six):** in Claude Code, use the `/plugin` command to add this repository as a plugin marketplace, then install the `vibe-coding-standards` plugin.
+- **Per skill:** copy any `skills/<name>/` directory into `~/.claude/skills/` (available in every project) or a project's `.claude/skills/` (that project only).
+
+---
+
 The engineers who will get the most out of AI agents aren't the ones with the best prompts. They're the ones who built a codebase where agents can work reliably at step 50, not just step 5.
