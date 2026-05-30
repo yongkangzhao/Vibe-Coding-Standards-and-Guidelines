@@ -1,4 +1,4 @@
-# Standard 13: Agent Teams — Coordinated Multi-Agent Development
+# Standard 14: Agent Teams — Coordinated Multi-Agent Development
 
 > A single agent doing everything — writing code, reviewing architecture, testing edge cases, thinking adversarially — produces inconsistent quality. It optimizes for the last thing it was asked to do and loses focus on the others. Worse, an agent that can both write code and review its own code will approve its own work. Separating roles with enforced tool restrictions (a reviewer that literally cannot write code) produces higher-quality output than any single agent, regardless of how good the prompting is.
 
@@ -13,7 +13,7 @@
 > - Context management strategy (kill agents between batches, fresh context per task)
 > - "Wait for all reviewers" batching pattern
 
-Standard 7 said "separate roles, separate agents." This standard describes how those agents actually work together at scale — the team structure, the communication protocol, and the operational patterns that emerge when multiple agents collaborate on real codebases.
+Standard 9 said "separate roles, separate agents." This standard describes how those agents actually work together at scale — the team structure, the communication protocol, and the operational patterns that emerge when multiple agents collaborate on real codebases.
 
 ### The Agent Team
 
@@ -25,7 +25,7 @@ A well-functioning agent team has five roles:
 | **Planner** | No | No | Reads code, produces implementation plans, consulted on-demand |
 | **Test Engineer** | No | Yes | Writes tests BEFORE implementation (TDD red phase), reviews coverage after |
 | **Engineer** | Yes | No | Makes tests pass, fixes review findings, iterates until clean |
-| **Adversary** | No | Yes (exploit tests only) | Thinks like an attacker, writes tests that prove flaws exist |
+| **Adversary** | No | Yes (exploit tests only) | Thinks like an attacker; writes exploit tests that assert the *secure* outcome — they fail while the flaw exists and pass once it's fixed |
 
 The critical design choice: **test engineer and adversary both write tests, but to different files.** The test engineer owns `test_service_*.py` (correctness tests). The adversary owns `test_security_*.py` (exploit tests). Separate files, no conflicts, safe to run in parallel.
 
@@ -33,11 +33,11 @@ The planner has no write tools. It cannot accidentally modify code while analyzi
 
 ### The Iterative Review Cycle
 
-The document's Standard 9 describes a linear loop: Spec → Interface → Tests → Implementation. In practice, the loop is cyclical:
+The Required Development Loop describes a linear sequence: Spec → Interface → Tests → Implementation. That sequence is the *inner contract* for one module — design before build. The team process here is the *outer review loop* that wraps it: by the time the test engineer writes failing tests below, the spec (README) and interface already exist from the linear loop's first two stages. The outer loop is cyclical:
 
 ```
-1. [Optional] Planner — consulted at start for complex tasks
-2. Test Engineer — writes failing tests (TDD red phase)
+1. [Optional] Planner — consulted at start for complex tasks; confirms the spec (README) and interface are already in place
+2. Test Engineer — writes failing tests against the existing interface (TDD red phase)
 3. Engineer — implements until all tests pass (TDD green phase)
 4. Test Engineer — reviews coverage, adds more tests
 5. Adversary — reviews for flaws, writes exploit tests
@@ -48,6 +48,8 @@ The document's Standard 9 describes a linear loop: Spec → Interface → Tests 
 
 One-shot review misses things. In production systems, the adversary routinely finds issues in round two that the test engineer missed in round one — race conditions, privilege escalation paths, zero-sum violations in financial calculations, bootstrap logic exploits. These are the bugs that tests alone don't catch because they require adversarial thinking about what the code *allows*, not just what it *does*.
 
+An exploit test is written like any correctness test: it asserts the *secure* behavior — a non-owner receives `PermissionError`, a double-spend is rejected — so it fails against the current vulnerable code and passes only once the engineer closes the hole. "Proving a flaw exists" means demonstrating that failure first, then locking in the fix; it does not mean asserting the vulnerability as permanent behavior.
+
 ### File Ownership Prevents Conflicts
 
 When two agents write to the same file simultaneously, one overwrites the other's changes. The solution isn't sequential execution (slow) — it's file-level ownership:
@@ -56,7 +58,7 @@ When two agents write to the same file simultaneously, one overwrites the other'
 modules/<name>/tests/
 ├── conftest.py                    # shared fixtures
 ├── test_service_<domain>.py       # test engineer's file
-└── test_security_<domain>.py      # adversary's file
+└── test_security_<name>.py        # adversary's file (one per module)
 ```
 
 The naming convention `test_service_*` vs `test_security_*` makes ownership visible at a glance. `grep -r test_security_` finds every exploit test in the codebase. Both agents can run in parallel because they never touch the same file.

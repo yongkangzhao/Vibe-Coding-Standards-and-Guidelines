@@ -1,4 +1,4 @@
-# Standard 9: The Required Development Loop — Spec → Interface → Tests → Implementation
+# Standard 10: The Required Development Loop — Spec → Interface → Tests → Implementation
 
 > A human engineer might skip the spec and rely on domain knowledge accumulated over months. An agent starts fresh every session — it has no internalized context. Without spec, interface, and tests already in place, the agent designs on the fly, and its design reflects local context rather than the global architecture decisions that have already been made. The development loop exists to ensure that by the time an agent writes implementation code, three layers of constraints already define what "correct" looks like.
 
@@ -12,7 +12,7 @@
 > - Test framework and fixture conventions
 > - How to handle iterative refinement within the loop
 
-The seven principles describe the structure. This is the process — the order of operations for every new module or feature:
+Standards 3–9 describe the structure. This is the process — the order of operations for every new module or feature:
 
 ```
 1. Spec        — README: what does this module own? what does it NOT own?

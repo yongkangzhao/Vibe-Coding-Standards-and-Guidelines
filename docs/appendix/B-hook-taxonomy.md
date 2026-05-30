@@ -1,6 +1,6 @@
 # Appendix B: Hook Taxonomy
 
-Standard 5 says "guardrails beat guidelines." This appendix provides the concrete hook architecture that makes this real. The specific hooks you need depend on your stack — this is one proven taxonomy.
+Standard 7 says "guardrails beat guidelines." This appendix provides the concrete hook architecture that makes this real. The specific hooks you need depend on your stack — this is one proven taxonomy.
 
 ### Pre-write hooks (block before the file is modified)
 - **Cross-module import guard**: rejects any import from a sibling module

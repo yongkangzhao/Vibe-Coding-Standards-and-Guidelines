@@ -16,15 +16,16 @@ These patterns appeared repeatedly in production codebases using AI agents. Each
 ### 1. Savepoints Must Wrap the Entire Mutation
 
 ```python
-# ❌ Mutation before savepoint — rollback won't undo it
+# ❌ Flush before the savepoint — the INSERT is already emitted in the
+#    outer transaction, so rolling back to the savepoint can't undo it
 self._db.add(obj)
-sp = self._db.begin_nested()
-self._db.flush()
+self._db.flush()              # row written here, OUTSIDE the savepoint
+sp = self._db.begin_nested()  # savepoint opened too late
 
-# ✅ Context manager wraps everything
+# ✅ Open the savepoint first; the mutation happens inside it
 with self._db.begin_nested():
     self._db.add(obj)
-    self._db.flush()
+    self._db.flush()          # INSERT is inside the savepoint, fully reversible
 ```
 
 ### 2. Counter Increments Must Be Atomic
@@ -39,13 +40,15 @@ self._db.execute(
 )
 ```
 
+The SQL-side increment removes the read-modify-write lost update. It is not the whole concurrency story: if you need the resulting value, add `RETURNING`; if the counter backs an invariant like a balance or quota, you still need the right isolation level or `SELECT ... FOR UPDATE`. Atomic increment closes one race, not all of them.
+
 ### 3. ORM Columns Must Match Migration Columns
 
 Every column in the ORM model needs a corresponding column in the Alembic migration. Agents frequently add ORM columns and forget the migration — the code "works" in tests (where `create_all()` builds from the ORM) but crashes in production (where Alembic migrations define the schema).
 
 ### 4. Every List Query Needs `order_by`
 
-Without `order_by`, result ordering is non-deterministic across databases and even across runs. Agents rarely add it unprompted. A pre-push hook that greps for `scalars().all()` without a preceding `order_by` catches this consistently.
+Without `order_by`, result ordering is non-deterministic across databases and even across runs. Agents rarely add it unprompted. A pre-push hook can flag `scalars().all()` with no `order_by` on the same statement — a grep heuristic catches the common single-expression case but misses statements built across several lines or variables, so treat it as a fast first filter rather than a guarantee. AST-level analysis is what makes the check sound.
 
 ### 5. Ownership Checks on All Mutating Methods
 

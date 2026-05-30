@@ -1,4 +1,4 @@
-# Standards 10–11: The Human Standards
+# Standards 11–12: The Human Standards
 
 > Agents don't push back on bad commands. If a human tells an agent to build a feature in the wrong module, the agent builds it there — faithfully, at scale, and at speed. The human role in AI-assisted development is no longer primarily writing code. It's understanding the system well enough to direct agents correctly, and maintaining the structural integrity that agents depend on but cannot maintain themselves.
 
@@ -47,7 +47,7 @@ Here's the failure mode that doesn't get talked about enough: **if a human gives
 
 Agents don't push back on bad commands. They implement them.
 
-If you don't know that commission rates live in the organization module and you tell an agent "add commission rate tracking to the platform module," the agent builds it there. Now you have a feature-sized violation, woven through the platform module, contradicting the established contract. Fixing it means a large refactor. Large refactors generate large PRs. Large PRs are hard to review properly. When PRs are hard to review properly, rules get bypassed "just this once." And once that starts, the rules become less meaningful.
+If you don't know the codebase already settled commission rates into the organization module — not because it was the only defensible home, but because that's where the interface put them — and you tell an agent "add commission rate tracking to the platform module," the agent builds it there. Now you have a feature-sized violation, woven through the platform module, contradicting the established contract. Fixing it means a large refactor. Large refactors generate large PRs. Large PRs are hard to review properly. When PRs are hard to review properly, rules get bypassed "just this once." And once that starts, the rules become less meaningful.
 
 The human's job is no longer primarily to write code. It's to understand the system well enough to direct it correctly:
 
