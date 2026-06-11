@@ -1,11 +1,12 @@
-# Standard 15: Data Retention as an Architectural Decision
+# Standard 16: Data Retention as an Architectural Decision
 
 > Agents default to hard-delete. Tell an agent to "delete a post" and it writes `DELETE FROM posts WHERE id = ?` — permanent, irrecoverable removal. This is the locally obvious implementation, and agents will produce it every time unless the codebase structurally steers them toward soft-delete. User-generated content is a business asset that feeds analytics, recommendations, and audit trails. Once hard-deleted, it cannot be recovered.
 
 > **Standards** (must follow):
-> - Soft-delete user-generated content (set `deleted_at`, never `DELETE FROM`)
+> - Soft-delete user-generated content by default (set `deleted_at`, not `DELETE FROM`)
 > - Filter deleted content in all queries (`WHERE deleted_at IS NULL`)
 > - Block new interactions on deleted content (raise errors, don't create orphaned records)
+> - Keep a real hard-delete path for legal erasure (GDPR/CCPA right to be forgotten)
 >
 > **Guidelines** (recommended):
 > - Specific soft-delete implementation pattern (`deleted_at` timestamp column)
@@ -33,6 +34,8 @@ def delete_post(self, post_id: UUID) -> None:
 The follow-up requirements:
 1. **Filter deleted content in queries**: `WHERE deleted_at IS NULL`
 2. **Block new interactions on deleted content**: voting on a deleted post should raise `NotFoundError`, not create an orphaned vote
-3. **Never hard-delete user-generated content rows**: if cleanup is needed, archive to cold storage
+3. **Don't hard-delete user-generated content on the default path**: if cleanup is needed, archive to cold storage
 
-This is an architectural decision that affects every module. Encode it in a rule, enforce it in hooks, and make it explicit in module READMEs. When an agent is told to "delete" something, the rule should guide it to soft-delete automatically.
+**The exception — legal erasure.** "Soft-delete by default" is not "never hard-delete." Privacy law — GDPR Article 17's right to erasure, CCPA's right to delete — can *require* irreversible removal of a person's data on request, and a `deleted_at` tombstone that keeps the row does not satisfy it. Build a deliberate hard-delete path for exactly these cases: scoped to verified erasure requests, audited, and kept separate from the everyday "delete this post" flow. The default protects business data from accidental loss; the exception keeps you lawful. Both are architectural decisions, made on purpose.
+
+This is an architectural decision that affects every module. Encode it in a rule, enforce it in hooks, and make it explicit in module READMEs. When an agent is told to "delete" something, the rule should guide it to soft-delete by default — and route genuine erasure requests to the audited hard-delete path.

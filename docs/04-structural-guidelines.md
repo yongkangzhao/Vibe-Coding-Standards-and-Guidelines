@@ -1,4 +1,4 @@
-# Standards 3–8: The Structural Guidelines
+# Standards 3–9: The Structural Guidelines
 
 > Agents need predictable navigation. When every module has a different file layout, different naming conventions, and different patterns, agents waste tokens reasoning about where things are instead of doing useful work. Predictable structure means an agent that understands one module understands all of them — and unpredictable structure means every task starts with an exploration phase that produces inconsistent results.
 
@@ -16,7 +16,7 @@
 
 These are drawn from production systems. Examples use a generic task management app — `task`, `user`, `notification` modules. Simple enough to be obvious, concrete enough to be useful.
 
-### 1. Predictable Structure Over Clever Structure
+### Standard 3: Predictable Structure Over Clever Structure
 
 Every module looks exactly the same:
 
@@ -27,14 +27,14 @@ modules/task/
 ├── orm.py            # database tables
 ├── README.md         # design document
 └── tests/
-    └── test_task_service.py
+    └── test_service_task.py   # correctness tests (naming per Test Infrastructure)
 ```
 
 This is deliberately boring. Clever code has cognitive overhead — unusual patterns require explanation. Boring, predictable code has zero overhead. An agent (or a new team member) that understands one module understands all of them. Business logic is always in `service.py`. Tables are always in `orm.py`. Public API is always in `__init__.py`.
 
 When agents don't know where to look, they look everywhere and make assumptions. Predictable structure is the navigation system.
 
-### 2. Module READMEs as Executable Specs
+### Standard 4: Module READMEs as Executable Specs
 
 For humans, documentation helps. For agents, documentation is the specification.
 
@@ -51,7 +51,7 @@ The "does NOT own" section is particularly important. Without it, agents optimiz
 
 A module without a README is incomplete, regardless of whether the code works.
 
-### 3. Interfaces Before Implementation
+### Standard 5: Interfaces Before Implementation
 
 Before any implementation is written, the contract should exist:
 
@@ -72,12 +72,12 @@ class NotificationServiceInterface(Protocol):
 This does several things at once:
 
 - **Defines scope.** If a method isn't in the interface, it isn't part of this service. No ambiguity.
-- **Enables parallel work.** Agent A implements the task module. Agent B implements notification. They never coordinate directly — both work against the same interfaces file. When they're done, the composition root wires them together and they fit.
+- **Enables parallel work.** Agent A implements the task module. Agent B implements notification. They never coordinate directly — both work against the same interfaces file. When they're done, the composition root — the single startup location where concrete implementations are constructed and injected — wires them together and they fit.
 - **Makes capabilities legible.** One file. Read it. Know what the entire system can do.
 
 The interface is the AI-to-AI communication protocol.
 
-### 4. Tests as Ground Truth
+### Standard 6: Tests as Ground Truth
 
 For humans, tests catch regressions. For agents, tests define correct behavior in machine-readable form.
 
@@ -100,7 +100,7 @@ With tests — especially written before implementation — agents work against 
 
 Tests are not quality assurance for agents. They are the ground truth.
 
-### 5. Guardrails Beat Guidelines
+### Standard 7: Guardrails Beat Guidelines
 
 Here's the distinction that matters most in practice.
 
@@ -129,13 +129,13 @@ You can still do the thing. But you do it intentionally, visibly, and with an ex
 
 **Encode constraints in tooling, not just documentation.**
 
-### 6. Bounded Scope Creates Reliable Agent Work
+### Standard 8: Bounded Scope Creates Reliable Agent Work
 
 The best agent tasks have a defined start (read these files), a clear scope (touch only these files), and a verifiable end (tests pass, review checks clear). "Implement the notification module" is a great agent task. "Improve the app" is not.
 
 Architecture designed so most feature work lives within a single module creates natural, right-sized work units. When that's true, agent tasks are bounded, predictable, and auditable. When it isn't — when adding a feature requires changes scattered across five modules — agent tasks become unpredictable, the judgment calls interact, and the result is hard to review and hard to roll back.
 
-### 7. Separate Roles, Separate Agents
+### Standard 9: Separate Roles, Separate Agents
 
 The same agent should not write code, review architecture, and do code quality review. A well-defined agent system has distinct roles:
 
