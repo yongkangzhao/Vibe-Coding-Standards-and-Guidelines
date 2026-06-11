@@ -64,6 +64,20 @@ Each skill is a self-contained folder under [`skills/`](skills/) — a `SKILL.md
 
 Claude Code auto-discovers each `SKILL.md` from there — no plugin or install step.
 
+### Generic webapp skills (`.skills/`)
+
+The six skills above carry this document's *architecture* (modular monolith, interface-first, agent teams). The [`.skills/`](.skills/) folder ships a second, **architecture-agnostic** set: the correctness-and-trust disciplines that apply to *any* web application — server or client, monolith or not. They were distilled from the failure modes that actually reach production when agents move fast: a UI that renders a plausible lie, a green test suite over a broken route, an optimistic update that hides a failure.
+
+| Skill | What it enforces |
+|---|---|
+| [`frontend-honesty`](.skills/frontend-honesty/SKILL.md) | The UI never displays something untrue — absent ≠ `$0.00`, error ≠ empty, no raw identifiers or echoed backend errors, formatters that reject garbage before coercion, no fabricated stats |
+| [`verify-through-the-real-path`](.skills/verify-through-the-real-path/SKILL.md) | "It works" must be proven through the real request path + the deployed artifact + the genuine UI — not inferred from unit tests that mocked the exact seam that breaks |
+| [`adversarial-exploit-review`](.skills/adversarial-exploit-review/SKILL.md) | Findings are failing exploit tests, not prose; an independent reviewer; ≥2 reviewers with distinct failure lenses on money/auth/migration/data-loss; mutation-test the guards |
+| [`server-authoritative-state`](.skills/server-authoritative-state/SKILL.md) | The client is a cache of server truth — no optimistic flip that masks a failure, cache written from confirmed responses, re-entrancy guards, no client-derived authority |
+| [`clean-migration`](.skills/clean-migration/SKILL.md) | Change an architecture → migrate every call site in the same change and delete the old path; no dual-path shim, no "backward compat" bypass kwarg |
+
+Same layout (`SKILL.md` + `references/{backend,frontend}.md`) and the same install: copy any `.skills/<name>/` into `~/.claude/skills/` or a project's `.claude/skills/`.
+
 ---
 
 The engineers who will get the most out of AI agents aren't the ones with the best prompts. They're the ones who built a codebase where agents can work reliably at step 50, not just step 5.
