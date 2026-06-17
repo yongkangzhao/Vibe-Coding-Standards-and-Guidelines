@@ -48,25 +48,25 @@ This repo also ships the standards as a set of six **Claude Code skills** that t
 
 | Skill | What it enforces | Standards |
 |---|---|---|
-| [`architecture-and-module-boundaries`](skills/architecture-and-module-boundaries/SKILL.md) | Modular-monolith structure, domain modules, enforced boundaries, day-one extractability | 1–3, 13 |
-| [`interface-first-development`](skills/interface-first-development/SKILL.md) | READMEs as specs + contracts before code; the Spec → Interface → Tests → Implementation loop | 4, 5, 10 |
-| [`tests-as-ground-truth`](skills/tests-as-ground-truth/SKILL.md) | Tests as the executable spec, run against real (not substitute) infrastructure | 6, 15 |
-| [`agent-team-review-loop`](skills/agent-team-review-loop/SKILL.md) | Bounded tasks, tool-restricted roles, iterate-until-clean review | 8, 9, 14 |
-| [`guardrails-and-rule-flywheel`](skills/guardrails-and-rule-flywheel/SKILL.md) | Structural enforcement over docs; PR gate; repeated feedback → automated rules | 7, 11, 12 |
-| [`data-and-state-safety`](skills/data-and-state-safety/SKILL.md) | Soft-delete + legal erasure, and the recurring persistence pitfalls | 16, App. A |
+| [`architecture-and-module-boundaries`](.skills/architecture-and-module-boundaries/SKILL.md) | Modular-monolith structure, domain modules, enforced boundaries, day-one extractability | 1–3, 13 |
+| [`interface-first-development`](.skills/interface-first-development/SKILL.md) | READMEs as specs + contracts before code; the Spec → Interface → Tests → Implementation loop | 4, 5, 10 |
+| [`tests-as-ground-truth`](.skills/tests-as-ground-truth/SKILL.md) | Tests as the executable spec, run against real (not substitute) infrastructure | 6, 15 |
+| [`agent-team-review-loop`](.skills/agent-team-review-loop/SKILL.md) | Bounded tasks, tool-restricted roles, iterate-until-clean review | 8, 9, 14 |
+| [`guardrails-and-rule-flywheel`](.skills/guardrails-and-rule-flywheel/SKILL.md) | Structural enforcement over docs; PR gate; repeated feedback → automated rules | 7, 11, 12 |
+| [`data-and-state-safety`](.skills/data-and-state-safety/SKILL.md) | Soft-delete + legal erasure, and the recurring persistence pitfalls | 16, App. A |
 
-Each skill is a self-contained folder under [`skills/`](skills/) — a `SKILL.md` plus a `references/` directory. The body stays language-neutral; concrete examples live in `references/backend.md` (Python / SQLAlchemy / pytest) and `references/frontend.md` (TypeScript / React / vitest).
+Each skill is a self-contained folder under [`.skills/`](.skills/) — a `SKILL.md` plus a `references/` directory. The body stays language-neutral; concrete examples live in `references/backend.md` (Python / SQLAlchemy / pytest) and `references/frontend.md` (TypeScript / React / vitest).
 
-**Use them:** copy (or symlink) any `skills/<name>/` folder into a directory Claude Code reads:
+**Use them:** copy (or symlink) any `.skills/<name>/` folder into a directory Claude Code reads:
 
 - `~/.claude/skills/` — available in every project you work on, or
 - a project's `.claude/skills/` — that project only.
 
 Claude Code auto-discovers each `SKILL.md` from there — no plugin or install step.
 
-### Generic webapp skills (`.skills/`)
+### Generic webapp skills
 
-The six skills above carry this document's *architecture* (modular monolith, interface-first, agent teams). The [`.skills/`](.skills/) folder ships a second, **architecture-agnostic** set: the correctness-and-trust disciplines that apply to *any* web application — server or client, monolith or not. They were distilled from the failure modes that actually reach production when agents move fast: a UI that renders a plausible lie, a green test suite over a broken route, an optimistic update that hides a failure.
+The six skills above carry this document's *architecture* (modular monolith, interface-first, agent teams). Living beside them under [`.skills/`](.skills/) is a second, **architecture-agnostic** set: the correctness-and-trust disciplines that apply to *any* web application — server or client, monolith or not. They were distilled from the failure modes that actually reach production when agents move fast: a UI that renders a plausible lie, a green test suite over a broken route, an optimistic update that hides a failure.
 
 | Skill | What it enforces |
 |---|---|
