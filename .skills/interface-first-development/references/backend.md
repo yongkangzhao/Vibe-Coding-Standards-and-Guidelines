@@ -10,21 +10,21 @@ written until the README, the Protocol, and the failing tests exist.
 # Organization Module
 
 ## Role
-Owns the business relationship: organizations, their members, and their
-contractual settings — including the commission rate the platform charges.
+Owns organizations, their members, and shared workspace preferences—including the
+default locale used for formatting dates, numbers, and generated messages.
 
 ## Does NOT own
-- Payment processing or invoicing → `billing` module.
-- Notifications on rate changes → `notification` module.
+- User-specific language preferences → `user` module.
+- Rendering translated messages → `localization` module.
 - User identity / auth → `user` module. We store a member's `user_id`, nothing more.
 
 ## Public interface
 See `common/interfaces.py :: OrganizationServiceInterface`.
-- `get_commission_rate(org_id) -> Decimal` — current rate; raises `OrgNotFoundError`.
-- `set_commission_rate(org_id, rate) -> None` — raises `OrgNotFoundError`, `InvalidRateError`.
+- `get_default_locale(org_id) -> str` — current locale; raises `OrgNotFoundError`.
+- `set_default_locale(org_id, locale) -> None` — raises `OrgNotFoundError`, `InvalidLocaleError`.
 
 ## Database tables
-- `organizations` (orm.py): id, name, commission_rate.
+- `organizations` (orm.py): id, name, default_locale.
 
 ## Dependencies
 - None on other modules. Pure relationship data.
@@ -36,16 +36,15 @@ See `common/interfaces.py :: OrganizationServiceInterface`.
 ## 2. Interface — `common/interfaces.py` (written before `service.py`)
 
 ```python
-from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
 
 class OrganizationServiceInterface(Protocol):
-    # The single, authoritative source of the commission rate.
+    # The single, authoritative source of the default locale.
     # If a value or method is not here, it is not part of this service.
-    def get_commission_rate(self, org_id: UUID) -> Decimal: ...
-    def set_commission_rate(self, org_id: UUID, rate: Decimal) -> None: ...
+    def get_default_locale(self, org_id: UUID) -> str: ...
+    def set_default_locale(self, org_id: UUID, locale: str) -> None: ...
 
 
 class NotificationServiceInterface(Protocol):
@@ -56,12 +55,12 @@ class NotificationServiceInterface(Protocol):
 Callers in other modules depend on the Protocol, never on the concrete class:
 
 ```python
-class BillingService:
+class MessageFormatter:
     def __init__(self, org_service: OrganizationServiceInterface) -> None:
         self._org_service = org_service  # injected at the composition root
 
-    def platform_fee(self, org_id: UUID, amount: Decimal) -> Decimal:
-        return amount * self._org_service.get_commission_rate(org_id)
+    def locale_for(self, org_id: UUID) -> str:
+        return self._org_service.get_default_locale(org_id)
 ```
 
 ## 3. Tests — written against the interface, MUST fail first (red phase)
@@ -73,30 +72,29 @@ state — a test that passes before implementation is testing nothing. See the
 ```python
 # modules/organization/service.py — stub written so tests import and FAIL
 class OrganizationService:
-    def get_commission_rate(self, org_id: UUID) -> Decimal:
+    def get_default_locale(self, org_id: UUID) -> str:
         raise NotImplementedError
-    def set_commission_rate(self, org_id: UUID, rate: Decimal) -> None:
+    def set_default_locale(self, org_id: UUID, locale: str) -> None:
         raise NotImplementedError
 ```
 
 ```python
 # modules/organization/tests/test_service_organization.py
 import pytest
-from decimal import Decimal
 
 
-def test_get_commission_rate_returns_stored_rate(org_service, seeded_org):
-    assert org_service.get_commission_rate(seeded_org.id) == Decimal("0.15")
+def test_get_default_locale_returns_stored_value(org_service, seeded_org):
+    assert org_service.get_default_locale(seeded_org.id) == "en-GB"
 
 
-def test_get_commission_rate_raises_for_unknown_org(org_service):
+def test_get_default_locale_raises_for_unknown_org(org_service):
     with pytest.raises(OrgNotFoundError):
-        org_service.get_commission_rate(uuid4())
+        org_service.get_default_locale(uuid4())
 
 
-def test_set_commission_rate_rejects_negative(org_service, seeded_org):
-    with pytest.raises(InvalidRateError):
-        org_service.set_commission_rate(seeded_org.id, Decimal("-0.01"))
+def test_set_default_locale_rejects_unknown_locale(org_service, seeded_org):
+    with pytest.raises(InvalidLocaleError):
+        org_service.set_default_locale(seeded_org.id, "not-a-locale")
 ```
 
 Run and confirm failure before writing real code:

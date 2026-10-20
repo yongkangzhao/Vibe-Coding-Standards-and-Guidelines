@@ -1,8 +1,8 @@
 # Roles, Tool Restrictions, and Operational Patterns
 
-The team is five roles. The restrictions are enforced at the **tool level** — an agent
-without write tools cannot write, no matter what its prompt says. This is what keeps a
-reviewer from fixing-then-approving its own work.
+The table describes five useful lenses, not mandatory headcount. Combine lenses for
+small, low-risk changes; separate them for sensitive work. Where supported, enforce
+reviewer independence at the tool level.
 
 ## Role × tools table
 
@@ -60,8 +60,8 @@ modules/<name>/tests/
 - `grep -r test_security_` finds every exploit test in the codebase.
 - Split `test_service_*` further by domain when a module is large —
   `test_service_auth.py`, `test_service_crud.py`, `test_service_payments.py`.
-- Target: no test file over ~500 lines. A 2,000-line test file is as hard for an agent to
-  navigate as a 2,000-line service file.
+- Use a repository-specific size/coupling budget. Treat the current baseline as a
+  ratchet and split by cohesive behavior when navigation or fixture coupling degrades.
 
 ## The "wait for all reviewers, then batch" pattern
 
@@ -79,24 +79,21 @@ Piecemeal fixes force the engineer into multiple rounds — each re-reads contex
 tests. Batching means one round. Exception: one reviewer is clearly going to take much longer
 and the other's fix is trivial and independent. Default to batching.
 
-## Kill agents between batches; lead keeps context
+## Reuse focused context; replace stale context
 
-Agents accumulate context across tasks; by the fifth task most of it is irrelevant. Stale
-context hurts three ways: lower output quality (worse signal-to-noise), higher cost (every stale
-token is re-billed on every message), and slower responses (larger contexts process slower).
+Agents accumulate context across tasks. Reuse is valuable while the worker remains on
+the same coherent problem; unrelated history eventually lowers signal, increases cost,
+and slows review.
 
 ```
-commit batch N
-  -> shut down ALL worker agents
-  -> spawn fresh workers for batch N+1
-     (each gets ONLY: relevant files, failing tests, issue description)
-lead persists across batches: what's done, what's next, decisions made
+complete coherent batch N
+  -> keep a compact lead checkpoint: revision, decisions, evidence, remaining scope
+  -> reuse workers continuing the same problem
+  -> start fresh workers for unrelated scope, stale context, or independent review
 ```
 
-Persistent lead + ephemeral workers mirrors a human team: the tech lead carries institutional
-knowledge while individual contributors focus on the current task. Throwing away worker context
-feels wasteful but the discarded context is mostly noise — a fresh agent with a precise prompt
-beats a stale agent with a long history on output, cost, and speed.
+Do not copy the full conversation into every assignment. A compact task packet contains
+the outcome, relevant paths, contracts, base revision, constraints, and evidence paths.
 
 ## The cycle, end to end
 
@@ -107,8 +104,8 @@ beats a stale agent with a long history on output, cost, and speed.
 4. Test Engineer — review coverage (READ the code), add tests
 5. Adversary — review for flaws (READ the code), write exploit tests
 6. IF findings -> Engineer fixes -> back to step 4
-7. REPEAT until both reviewers report "all clear"
-8. Commit, then kill workers and start the next batch fresh
+7. REPEAT when findings changed the diff; recheck changed scope and affected invariants
+8. Commit when required reviewers report "all clear"; retain or replace workers based on continuity
 ```
 
 Reviewing means reading the changed code every cycle — including re-reviews after fixes. Green

@@ -1,11 +1,13 @@
 ---
 name: architecture-and-module-boundaries
-description: Structure an AI-assisted codebase as a modular monolith with domain modules, structurally-enforced boundaries, predictable uniform layout, and day-one extractability. Use this when starting a new project or service, deciding where a new endpoint/feature/component should live, organizing backend domain modules or frontend feature slices, setting up import/lint boundary rules, picking between monolith and microservices, refactoring a "junk drawer" codebase, or whenever an agent is about to guess where code belongs — even if the user doesn't name architecture explicitly.
+description: Structure an AI-assisted codebase with explicit domain ownership, enforced dependency direction, predictable module layout, and incremental evolution. Use when starting a project, deciding where behavior belongs, organizing backend modules or frontend feature slices, setting boundary checks, choosing monolith versus services, or decomposing a coupled codebase.
 ---
 
 # Architecture & Module Boundaries
 
-> Organize the codebase by domain into modules whose boundaries are enforced by tooling, give every module the same predictable shape, and design each one so it could later be lifted into its own service without a rewrite. This matters more for AI-written code than human-written code: agents start every session with no institutional memory, can't reason about future architecture, and will place code wherever seems locally reasonable — so the structure itself, not a contributing guide, has to be the navigation system and the guardrail.
+> Organize the codebase by domain, enforce dependency direction with tooling, and
+> evolve boundaries from evidence. A modular monolith is a strong default, not a
+> mandate to simulate future microservices inside one process.
 
 ## When to use this
 - Starting a new project, package, or service and deciding the top-level structure.
@@ -17,7 +19,7 @@ description: Structure an AI-assisted codebase as a modular monolith with domain
 
 ## The standards
 
-**Start from a modular monolith, not microservices.** One codebase gives agents full visibility (they can find existing implementations instead of duplicating them); domain modules give enforced isolation. Microservices split visibility across repos and force agents to reason about network failures before the domain boundaries are even known to be right — and a wrong boundary is expensive to move when it's a service, cheap when it's a folder. Adopt other architectures only when scale actually demands it.
+**Use a modular monolith as the default for a new stateful product.** One codebase gives agents full visibility; domain modules give enforced isolation without adding network and operational failure modes. Choose another architecture when measured scale, isolation, residency, availability, or team ownership requires it—not because distribution looks mature. Preserve an existing sound architecture rather than rewriting it to match this default.
 
 **Organize by domain, not by technical layer.** A feature should live in one module, not be smeared across `models/`, `controllers/`, and `services/` that every other feature also shares. Domain folders give a narrow blast radius per change; layered folders give a wide one. This applies identically on the frontend: feature slices, not a global `components/` + `hooks/` + `utils/` soup.
 
@@ -42,10 +44,12 @@ import OtherModuleInternals   # nocheck: arch-guard — composition root only
 
 **Expose only a public surface; forbid reaching into internals.** Other modules import the barrel/`index`, never a sibling's `service`/`orm` directly. This is the seam that later becomes a network boundary — keep it clean now and extraction is tractable later.
 
-**Design for extractability from day one.** Three decisions make a module liftable into a service without rewriting its callers — and they're the *same* decisions a microservice needs, so they're early, not premature:
+**Design for local change; keep extraction optional.** Narrow contracts and explicit composition reduce ordinary refactor cost and can make later extraction tractable. They do not require every service to have a ceremonial interface or pretend to be remote.
 
-- **Interface-based DI:** every service is consumed through an interface/`Protocol`, never a concrete class.
-- **Single composition root:** the one startup location that constructs concretes and injects them. Swapping a local call for a remote client changes only this file.
+- **Contract-based dependency:** cross-module consumers use a narrow public capability; introduce substitutable interfaces where multiple implementations, testing seams, or boundary stability justify them.
+- **Known composition roots:** concrete construction and wiring are visible. A later
+  extraction starts there, while callers and contracts still need review for remote
+  latency, failure, and consistency semantics.
 
 ```
 # composition root — the ONLY place wiring changes
@@ -55,18 +59,21 @@ orgService: OrganizationServiceInterface = OrganizationHTTPClient(url)    # tomo
 
 - **Opaque IDs across boundaries:** pass `org_id` strings, not ORM foreign-key objects, so there's no cross-module persistence coupling to unpick.
 
-**Be honest that the interface only stabilizes call sites.** The `Protocol` keeps callers compiling, but crossing a real network boundary still adds work the in-process call never had: timeouts, retries, partial failures, serialization of rich types, loss of a single shared DB transaction, latency, and auth on the new seam. Extractability means you harden one existing seam instead of carving a new one through entangled code — it does not mean extraction is free.
+**Require evidence before extraction.** Independent scaling, fault/security isolation, residency, availability, or stable team ownership may justify a service. Record the transaction, consistency, latency, auth, observability, deployment, rollback, and operational consequences in an ADR. A typed call site does not make a network boundary free.
+
+**Modernize with ratchets, not rewrites.** Baseline file size, complexity, dependency cycles, fan-in/fan-out, and shared-kernel growth. Prevent new regression immediately, then move one cohesive capability behind characterization tests and lower the baseline after each change.
 
 ## Checklist
 - [ ] Code is organized by domain module/feature slice, not by technical layer.
 - [ ] Every module has the same file layout, and one README states its role **and what it does NOT own**.
 - [ ] Cross-module/cross-feature imports go through a public `index`/barrel — never into a sibling's internals.
 - [ ] A linter or hook (not a doc) blocks illegal imports and misplaced logic; every exception is a visible `nocheck`/allow-list entry.
-- [ ] Every service is consumed via an interface; concretes are constructed in exactly one composition root.
+- [ ] Cross-module dependencies use narrow public contracts; substitutable implementations are wired in known composition roots.
 - [ ] Identifiers crossing module boundaries are opaque (plain IDs), not ORM/foreign-key objects.
+- [ ] Architecture budgets prevent new cycles, shared-kernel growth, and complexity regression while legacy debt is reduced incrementally.
 
 ## What breaks without this
-- **Feature duplication:** the same logic (fetching a user's active subscription, a commission rate) gets re-implemented in three files, each slightly different; one gets updated, the others rot.
+- **Feature duplication:** the same logic (fetching a user's active subscription, a default locale) gets re-implemented in three files, each slightly different; one gets updated, the others rot.
 - **Logic leakage:** a discount/pricing rule ends up in the API handler, the frontend component, and a raw query at once — each with different rounding, none agreeing.
 - **Architectural drift:** the intended structure lives in a doc or someone's head while the real structure is whatever agents did; they diverge fast because every session starts fresh.
 - **Rewrite-to-scale:** without interfaces and opaque IDs, modules grow direct couplings, so the day you need a service you face a rewrite instead of hardening one seam.

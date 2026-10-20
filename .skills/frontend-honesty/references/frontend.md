@@ -67,7 +67,7 @@ catch (err) { setError(err.response.data.detail); } // "No profile for user_id='
 
 // ✅ Map the machine code to safe, generic copy
 const MESSAGES: Record<string, string> = {
-  coach_profile_not_found: "This coach hasn't set up a profile yet.",
+  provider_profile_not_found: "This provider hasn't set up a profile yet.",
 };
 catch (err) {
   const code = err.response?.data?.detail;
@@ -112,7 +112,7 @@ function Dashboard() {
   return (
     <div className="grid grid-cols-2 gap-4">
       <IncomeCard />   {/* if its fetch 500s, it shows its own ErrorTile... */}
-      <BookingsCard /> {/* ...and these still render their real data */}
+      <OrdersCard /> {/* ...and these still render their real data */}
       <RosterCard />
     </div>
   );
@@ -124,12 +124,12 @@ Don't hoist every fetch into one top-level query whose error white-screens the w
 
 ```tsx
 // ❌ Invented figures with no endpoint behind them
-<Stat label="Players" value="432" />
+<Stat label="Users" value="432" />
 <Stat label="Rating" value="★4.8" />
 
 // ✅ Real field, with an honest placeholder when absent
-<Stat label="Players" value={facility.playerCount ?? "—"} />
-{facility.rating != null && <Stat label="Rating" value={`★${facility.rating.toFixed(1)}`} />}
+<Stat label="Users" value={workspace.userCount ?? "—"} />
+{workspace.rating != null && <Stat label="Rating" value={`★${workspace.rating.toFixed(1)}`} />}
 ```
 
 ## Test the honesty boundary

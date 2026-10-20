@@ -20,23 +20,27 @@ None of this is new. Every team that has grown a codebase without discipline has
 
 ## The Failure Mode in Practice
 
-Imagine you're building a marketplace platform — businesses transact, the platform earns a commission. Different businesses have different rates. Simple enough.
+Imagine a collaboration product where each workspace has a default locale for
+dates, numbers, and generated messages. Simple enough.
 
-Now the question: **where does the commission rate live?**
+Now the question: **where does the default locale live?**
 
 Three defensible options:
 
 | Option | Location | Rationale |
 |---|---|---|
-| A | Platform module | The platform sets and owns rates; it's a revenue concern |
-| B | Organization module | Rates are part of the business relationship; orgs have rates |
-| C | New billing/contracts module | This is its own domain; neither platform nor org should own it |
+| A | Account module | Locale is an account preference |
+| B | Workspace module | Locale is shared by members of one workspace |
+| C | Localization module | Formatting policy is its own concern |
 
 A senior engineer could write a convincing case for any of them.
 
 Here's what happens without a decision mechanism:
 
-One developer starts building the commission feature and puts it in the platform module. Another, working on a different feature, needs a commission rate and looks in the organization module — makes sense, it's an org-level setting. It's not there, so they add it. A third agent, writing a billing report, finds rate data in both places with different values and doesn't know which to trust. It picks one. Now you have three implementations, two of which are wrong, and every PR that touches commission rates becomes an architectural argument.
+One developer puts the locale in account settings. Another needs it for a shared
+workspace export and adds it to the workspace. A third builds message formatting,
+finds both values, and chooses one. Now the same decision has multiple sources and
+every caller must guess which is authoritative.
 
 Here's what happens with an interface contract:
 
@@ -44,12 +48,12 @@ Here's what happens with an interface contract:
 # common/interfaces.py — written before any implementation
 
 class OrganizationServiceInterface(Protocol):
-    def get_commission_rate(self, org_id: str) -> Decimal: ...
+    def get_default_locale(self, org_id: str) -> str: ...
 ```
 
 Three lines. Now:
 
-- Every agent that needs a commission rate calls `org_service.get_commission_rate(org_id)` — because that's the only place it exists
+- Every agent that needs a default locale calls `org_service.get_default_locale(org_id)` — because that's the only place it exists
 - Every PR is checked against the interface — code that doesn't use it is wrong by definition
 - The architectural debate is closed — not because everyone agreed it was the best choice, but because the interface made the choice structural
 

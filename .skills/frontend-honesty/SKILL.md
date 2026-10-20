@@ -42,7 +42,7 @@ return format(to_number(value))
 
 **Loading, empty, and error are first-class states, rendered independently per card.** Each must be an explicit, separate branch — not an afterthought fallthrough. And one card's failed fetch must not blank the page: isolate fetches so a broken income widget shows its own error tile while the rest of the dashboard renders. A single failure that whites out the whole screen is its own kind of lie (the page looks "empty", not "partly broken").
 
-**Every number traces to a real backend field, or it is removed.** No fabricated stats, ratings, counts, or deltas — "432 players", "★4.8", "+12.5%" with no endpoint behind them are forbidden, even as placeholder polish. If the data isn't available, show a placeholder or omit the element; never invent a plausible figure to fill the space. A made-up number is indistinguishable from a real one to the user, which is exactly why it's dangerous.
+**Every number traces to a real backend field, or it is removed.** No fabricated stats, ratings, counts, or deltas — "432 users", "★4.8", "+12.5%" with no endpoint behind them are forbidden, even as placeholder polish. If the data isn't available, show a placeholder or omit the element; never invent a plausible figure to fill the space. A made-up number is indistinguishable from a real one to the user, which is exactly why it's dangerous.
 
 ## Checklist
 - [ ] Null/absent values render an em-dash or honest placeholder, never a fabricated `0` / `$0.00` / `0%` / `NaN`.

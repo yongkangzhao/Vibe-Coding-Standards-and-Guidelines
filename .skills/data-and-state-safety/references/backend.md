@@ -23,7 +23,7 @@ def delete_post(self, post_id: UUID) -> None:
 ```python
 stmt = (
     select(PostORM)
-    .where(PostORM.facility_id == facility_id)
+    .where(PostORM.workspace_id == workspace_id)
     .where(PostORM.deleted_at.is_(None))   # never resurrect deleted content
     .order_by(PostORM.created_at.desc())   # deterministic — see below
 )
@@ -111,15 +111,26 @@ wallet.balance -= amount
 
 ```python
 # ❌ DB row locked while waiting on the network
-wallet.balance += amount
+account.reserve(amount)
 self._db.flush()
-stripe_id = stripe.charge(...)   # slow call, lock held — stalls other writers
+provider.create_effect(...)      # slow call, lock held — stalls writers
 
-# ✅ External call first, then the DB write
-stripe_id = stripe.charge(...)   # no DB state open
-wallet.balance += amount
-self._db.flush()
+# ✅ Persist a retryable intent atomically, deliver after commit
+with transaction():
+    account.reserve(amount)
+    outbox.add(
+        kind="create_effect",
+        idempotency_key=operation_id,
+        payload={"amount": amount},
+    )
+
+deliver_outbox_after_commit()    # provider call is idempotent; result reconciles durably
 ```
+
+An outbox is one option, not the only one. A provider-first call can also be safe
+when it is idempotent and followed by durable reconciliation or compensation. The
+invariant is that no database lock spans the network call and every partial outcome
+has a recovery path.
 
 ## Deterministic order_by on every list query
 
@@ -136,15 +147,15 @@ rows = self._db.scalars(
 ## Ownership checks on every mutating method
 
 ```python
-def update_court(self, facility_id: UUID, court_id: UUID, caller: UUID, **fields) -> Court:
-    facility = self._db.get(FacilityORM, facility_id)
-    if facility is None or facility.created_by != caller:
-        raise ForbiddenError("not your facility")   # check the PARENT, not just the court
-    court = self._get_court(facility_id, court_id)
+def update_document(self, workspace_id: UUID, document_id: UUID, caller: UUID, **fields) -> Document:
+    workspace = self._db.get(WorkspaceORM, workspace_id)
+    if workspace is None or workspace.created_by != caller:
+        raise ForbiddenError("not your workspace")   # check the PARENT, not just the document
+    document = self._get_document(workspace_id, document_id)
     for k, v in fields.items():
-        setattr(court, k, v)
+        setattr(document, k, v)
     self._db.flush()
-    return Court.model_validate(court)
+    return Document.model_validate(document)
 ```
 
 ## ORM columns must match migration columns

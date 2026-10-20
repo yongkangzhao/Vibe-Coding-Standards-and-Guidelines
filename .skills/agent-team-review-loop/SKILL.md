@@ -1,11 +1,11 @@
 ---
 name: agent-team-review-loop
-description: Structures multi-agent work into bounded tasks, tool-restricted roles, and an iterative review cycle that loops until reviewers report clean. Use this when dispatching agents to build or change code (frontend or backend), when an agent is about to both write and review its own work, when scoping a task like "implement the notification module" vs "improve the app", when two agents might write the same test file, when an agent builds a React feature and then needs an independent pass for accessibility or business-logic leak, or when deciding whether to commit after one review pass — even if the user doesn't name it explicitly.
+description: Structures multi-agent work into bounded tasks, explicit file ownership, risk-calibrated independent review, and efficient repair cycles. Use this when dispatching agents to build or change code, deciding whether parallel work is actually independent, preventing an author from being the only reviewer, batching review findings, or deciding whether to reuse a focused worker or start with fresh context.
 ---
 
 # Agent-Team Review Loop
 
-> Give every agent one bounded job, restrict its tools so a reviewer literally cannot approve its own code, and cycle the review (test-engineer then adversary) until both report clean — not one-shot. This matters most when agents write the code: an agent that can both write and review will rubber-stamp itself, a vague task produces vague output, and an agent five tasks deep is mostly carrying noise. Bounded scope, separated roles, and fresh context are what make multi-agent work auditable instead of chaotic.
+> Give every agent one bounded job, make write ownership explicit, and require an independent review proportionate to risk. Parallelism is useful only when startup, context transfer, and integration cost are lower than the time saved.
 
 ## When to use this
 - Dispatching one or more agents to build or modify a module — backend (service, ORM, transactions) or frontend (components, hooks, presentation).
@@ -13,7 +13,7 @@ description: Structures multi-agent work into bounded tasks, tool-restricted rol
 - An agent is about to write code AND review the same code — split it.
 - A frontend feature needs an independent reviewer for accessibility and to confirm no business logic (validation, pricing, authz) leaked into the presentation layer.
 - Two agents will write tests for the same module and you need them to not clobber each other.
-- Deciding whether to commit after a single review pass (don't — loop until clean).
+- Deciding whether a changed diff invalidates prior review evidence.
 - Setting up parallel agents and needing a file-ownership convention so they don't collide.
 
 ## The standards
@@ -34,7 +34,7 @@ engineer:      read + write production code + tests
 adversary:     read + write exploit tests only (test_security_*)
 ```
 
-**Review iteratively, not once.** Engineer makes tests pass; then test-engineer reviews coverage; then adversary reviews for flaws; if either finds issues, engineer fixes and the cycle repeats — commit only when BOTH report clean. One-shot review misses the round-two bugs (race conditions, privilege escalation, financial zero-sum violations) that need adversarial thinking, not just a green test run.
+**Review iteratively where findings change the diff.** Engineer makes tests pass; reviewers inspect coverage and risk; findings are repaired; reviewers recheck the changed scope and affected invariants. Commit only when required reviewers report clean. Do not mandate an identical second review of an unchanged diff merely to satisfy a round count.
 ```
 loop:
   engineer implements -> tests green
@@ -50,30 +50,30 @@ until both clear -> commit
 
 **Review means reading the changed code, not just running tests.** Green tests prove the tested paths work, not that the code is correct or safe — the adversary especially must read the implementation to find new attack surface. Every cycle, including re-reviews after fixes, reads the diff.
 
-**Kill agents between batches; the lead keeps the high-level context.** After each commit, shut down workers and spawn fresh ones with only what the next task needs. Accumulated context is mostly noise — it degrades output quality, costs tokens on every message, and slows responses. The lead (human or coordinator) retains "what's done / what's next"; workers stay small and ephemeral.
+**Reuse focused context; replace stale context.** Keep a worker when it remains on the same coherent problem and its local understanding reduces rework. Start fresh for an unrelated batch, when stale history dominates, or when independence is required. The lead keeps a compact checkpoint—revision, decisions, evidence, remaining scope, and blockers—rather than copying the entire conversation into every assignment.
 
 ## Checklist
 - [ ] Each agent task has a defined start (files to read), narrow scope (files it may touch), and verifiable end (named tests + review clear).
 - [ ] Reviewers (planner, adversary) have NO production-write tools; adversary writes test files only.
 - [ ] Test-engineer's tests and adversary's exploit tests live in separate files (`test_service_*` vs `test_security_*`).
-- [ ] Review ran at least twice and both test-engineer AND adversary reported clean before commit.
+- [ ] Required independent reviewers reported clean for the final changed scope; sensitive changes received the additional risk lenses they require.
 - [ ] Every review (including re-reviews) read the changed code, not just the test output.
 - [ ] Findings from both reviewers were batched into one fix round.
-- [ ] Worker agents were killed/replaced between commits; only the lead carried context forward.
+- [ ] Workers were reused only for coherent scope; unrelated or stale context was replaced with a compact task packet.
 
 ## What breaks without this
 - An agent that writes and reviews its own code approves itself — flaws ship because nothing independent ever objected.
 - One-shot review passes the test-engineer's coverage check but misses the race condition or privilege-escalation path the adversary would have caught in round two.
 - Two parallel agents write the same test file; one overwrites the other's tests and coverage silently regresses.
 - A vague "improve the app" task produces a sprawling diff across five modules — unreviewable, hard to roll back, full of interacting judgment calls.
-- A worker agent five tasks deep carries 40K tokens of stale context: worse output, higher cost, slower responses.
+- A worker carries unrelated history across many tasks: worse signal, higher cost, and slower responses.
 
 ## Stack-specific examples
 The process is stack-agnostic. Backend reviewers focus on security, transactions, and authorization; frontend reviewers focus on accessibility and ensuring no business logic (validation, pricing, authz) leaks into the presentation layer — that belongs in the backend.
-- **Roles, tool-permission table, file-ownership convention, and the batching / kill-between-batches patterns:** see `references/roles.md`
+- **Roles, tool-permission table, file ownership, finding batches, and context-reuse decisions:** see `references/roles.md`
 
 ## Related
-- Full rationale: `docs/04-structural-guidelines.md` (Standard 8: Bounded Scope, Standard 9: Separate Roles) and `docs/08-agent-teams.md` (Standard 14) in this repo.
+- Full rationale: `docs/04-structural-guidelines.md` (Standard 8: Bounded Scope, Standard 9: Separate Authorship From Independent Review) and `docs/08-agent-teams.md` (Standard 14) in this repo.
 - `superpowers:subagent-driven-development` and `superpowers:dispatching-parallel-agents` for the mechanics of running independent agents — reference them; don't duplicate.
 - `superpowers:requesting-code-review` and `superpowers:receiving-code-review` for review mechanics and how to respond to findings with rigor.
 - Aligns with the 7-step team workflow in `~/.claude/CLAUDE.md` (Planner, Test-engineer, Engineer, Adversary).

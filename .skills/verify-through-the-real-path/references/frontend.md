@@ -47,7 +47,7 @@ http.get("/inbox", () => HttpResponse.json({ messages: [] }, { status: 200 }));
 `render()` + MSW proves the component; only clicking the genuine deployed UI proves the *system*. This is the check that surfaces a route that 500s for every user — make it a gate, not a manual afterthought.
 
 ```ts
-// e2e/inbox.smoke.spec.ts — runs against the DEPLOYED app, real BFF/API behind it
+// e2e/inbox.smoke.spec.ts — runs against the deployed app and real gateway/API
 import { test, expect } from "@playwright/test";
 
 test("inbox loads for a signed-in user on the deployed site", async ({ page }) => {

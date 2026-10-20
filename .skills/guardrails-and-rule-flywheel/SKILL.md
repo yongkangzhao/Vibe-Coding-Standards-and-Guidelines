@@ -11,6 +11,8 @@ description: Enforce architecture and quality with structural guardrails (hooks,
 - Setting up or auditing hooks: pre-write, pre-commit, pre-push, post-edit (backend), or husky + lint-staged (frontend).
 - Adding import-boundary enforcement: an arch-guard that rejects cross-module imports, or ESLint `no-restricted-imports` / `import/no-restricted-paths` for feature boundaries.
 - Wiring CI gates: running tests, `tsc --noEmit` type-check, lint, and a11y lint (`eslint-plugin-jsx-a11y`) as merge-blocking checks.
+- Designing risk-based CI lanes, a fail-closed change classifier, stable aggregate
+  required checks, superseded-run cancellation, or exact-tree evidence reuse.
 - Defining branch-protection / PR policy: no direct pushes to main, every change reviewed before merge.
 - Reviewing a suppression (`# nocheck`, `eslint-disable`, `@ts-ignore`) and deciding whether it needs a tracked issue.
 - Any moment the same defect appears in review a second time — your cue to write a rule instead of a comment.
@@ -40,6 +42,17 @@ mistake → caught in review → fixed → SAME mistake next PR
 import Something from "sibling"  // nocheck: arch-guard — remove when #42 closes
 ```
 
+**CI selection is itself a guardrail.** A narrow lane may run only when an automated
+classifier proves every changed path and generated output belongs to an explicit
+low-risk allowlist. Unknown, money, identity, authorization, privacy, migration,
+shared-contract, infrastructure, workflow, and classifier changes use the broad
+lane. One stable required check reports the lane and reason.
+
+**Ratchet legacy debt.** When an immediate hard limit would block unrelated work,
+record the current size/complexity/dependency/suppression baseline, fail new
+regressions, and lower the baseline through focused changes. Warning forever is not
+enforcement; failing all legacy code immediately is not a migration plan.
+
 **Time freed by faster coding goes to planning and review, not more coding.** The bottleneck shifted from writing code to understanding the system well enough to direct agents and verify their output. Running the wrong loop (more code, same review) is how guardrails erode.
 
 ## Checklist
@@ -47,6 +60,9 @@ import Something from "sibling"  // nocheck: arch-guard — remove when #42 clos
 - [ ] Each guardrail prints rule + file + line + fix, not just "rejected".
 - [ ] Branch protection forbids direct pushes to main; PRs require human review before merge.
 - [ ] CI runs tests, type-check (`tsc --noEmit` / equivalent), lint, and a11y lint as blocking gates.
+- [ ] CI lane selection is automated, fail closed, and visible through one stable aggregate check.
+- [ ] Superseded work is cancelled; exact-tree result reuse requires automated equivalence proof.
+- [ ] Legacy budgets are baselined and ratcheted so new debt fails without demanding a rewrite.
 - [ ] Backend: ORM/migration parity and list-query `order_by` are checked pre-commit/pre-push.
 - [ ] Frontend: feature-boundary imports are blocked by ESLint; lint-staged + husky run on staged files.
 - [ ] Every suppression (`# nocheck`, `eslint-disable`, `@ts-ignore`) carries an issue reference, enforced in review.

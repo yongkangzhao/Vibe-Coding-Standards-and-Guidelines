@@ -8,14 +8,14 @@ A scope argument was added so assignments are tenant-isolated. Leaving it option
 
 ```python
 # ❌ "for backward compat" — the un-scoped path survives forever
-def assign(self, user_id: str, facility_id: UUID | None = None) -> Assignment:
-    if facility_id is None:
+def assign(self, user_id: str, workspace_id: UUID | None = None) -> Assignment:
+    if workspace_id is None:
         return self._legacy_assign(user_id)          # global, unscoped — the bug
-    return self._scoped_assign(user_id, facility_id)
+    return self._scoped_assign(user_id, workspace_id)
 
 # ✅ Required arg; every caller migrated in the same change
-def assign(self, user_id: str, facility_id: UUID) -> Assignment:
-    return self._scoped_assign(user_id, facility_id)
+def assign(self, user_id: str, workspace_id: UUID) -> Assignment:
+    return self._scoped_assign(user_id, workspace_id)
 ```
 
 Find every caller before you commit — the migration isn't done until this returns nothing:
@@ -24,7 +24,7 @@ Find every caller before you commit — the migration isn't done until this retu
 rg -n '\.assign\(' --type py        # zero hits on the old 1-arg form
 ```
 
-If a caller genuinely has no `facility_id`, that caller is a bug too — fix it here, don't give it a default to hide behind.
+If a caller genuinely has no `workspace_id`, that caller is a bug too — fix it here, don't give it a default to hide behind.
 
 ## Ripping out a concept — delete the name, don't re-export it
 
@@ -93,7 +93,7 @@ def __init__(self, db: Session, permissions: PermissionService):
 # conftest.py — the churn is the point: the fixture now reflects reality
 @pytest.fixture
 def service(db, permission_service):
-    return CourtService(db, permissions=permission_service)
+    return DocumentService(db, permissions=permission_service)
 ```
 
 A `None` default here would let a real route construct the service without permissions and skip every authorization check — the fixture update is cheaper than that hole.

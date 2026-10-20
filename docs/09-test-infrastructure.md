@@ -1,50 +1,89 @@
-# Standard 15: Test Infrastructure as Architecture
+# Standard 15: Layered, Deterministic Test Infrastructure
 
-> Tests are the only feedback loop an agent has. When tests run against a different database than production, agents receive false confirmation that their code works — locking silently ignored, type handling differs, constraints missing. The agent sees green and moves on. The bug ships to production. A substitute database still catches ordinary logic errors, but it produces false confidence about exactly the engine-dependent behavior — locking, native types, constraints — that it cannot reproduce, and it does so at machine speed.
+> Tests are useful only when they can fail for the behavior they claim to prove and
+> pass repeatedly without depending on hidden shared state.
 
-> **Standards** (must follow):
-> - Test against the same database engine as production (not an in-memory substitute)
-> - Predictable test file structure that mirrors module structure
-> - No test file over 500 lines — split by domain when it grows
+> **Standards**
+> - Behavioral tests are deterministic and isolated.
+> - Engine-specific persistence claims run against the production database engine.
+> - Critical cross-module flows have a small set of stable golden journeys.
+> - Flakes and leaked resources are defects, not a reason to normalize retries.
 >
-> **Guidelines** (recommended):
-> - Disposable containers for database instances per test session
-> - Suppression with traceability (`# nocheck` requires issue reference)
+> **Guidelines**
+> - Keep most feedback fast and local; reserve expensive infrastructure for claims
+>   that require it.
+> - Split tests by cohesive behavior before files become navigation bottlenecks.
 
-Tests are ground truth (Standard 6). But test infrastructure itself needs architectural discipline. Without it, test files become the most disorganized part of the codebase — the place where "just add it here" accumulates fastest.
+## Match the layer to the claim
 
-### Test Against Your Production Engine, Not a Substitute
+| Layer | Proves | Appropriate substitutes |
+|---|---|---|
+| Unit/property | local rules, transformations, invariants | clocks, randomness, declared neighboring interfaces |
+| Module integration | persistence, transactions, constraints, public module API | external providers at explicit ports |
+| Contract | compatibility between producer and consumer | recorded provider sandbox where appropriate |
+| Golden journey | cross-module wiring and critical user outcome | as few seams as practical |
+| Live smoke | artifact, routing, configuration, and basic runtime health | none for the path being observed |
 
-A common pattern: tests run against an in-memory database for speed, while production runs a different engine entirely. This creates a parallel universe where your tests pass but your production code is wrong.
+Do not duplicate every assertion at every layer. Put detailed combinatorics at the
+lowest layer capable of proving them, then keep higher layers focused on wiring,
+authority, persistence, and externally visible outcomes.
 
-Things a substitute database hides:
-- **Row-level locking** (`SELECT ... FOR UPDATE`) silently ignored
-- **UUID handling** differs (strings vs native types)
-- **Partial indexes** behave differently or don't exist
-- **Array/JSON types** have different semantics
-- **Concurrent access** patterns are completely different
+## Use the real engine where semantics matter
 
-The fix: use disposable containers. Spin up a real instance of your production database engine for each test session — a throwaway container, never the live production database itself. The container is destroyed after tests complete. Setup adds seconds to the test run — negligible compared to the bugs it catches.
+An in-memory substitute cannot prove row locking, native types, partial indexes,
+constraint timing, isolation, or migration behavior. Module integration, migration,
+and concurrency tests that depend on those semantics must run against a disposable
+instance of the production engine.
 
-Every test runs against the same database engine your production code uses. Every lock actually locks. Every type behaves as it would in production. Every constraint fires exactly as expected.
+This does not mean every pure function test should start a container. Fast unit tests
+remain valuable. The rule is that the infrastructure must be capable of supporting
+the claim being made.
 
-**This rule is about the database engine, not collaborators.** Mocking a *service* at its interface seam — like the notification-service mock in the "Tests as Ground Truth" example — is legitimate, and it's exactly what interface-first dependency injection is for: you test one module in isolation against the contracts of its neighbors. What you never substitute is the database engine underneath the module you're actually testing. Mock across module boundaries; run real against your own storage.
+Never use a live production database for tests.
 
-### Predictable Test Structure
+## Fixture ownership
 
-Standard 3 says every module looks the same. The same applies to test directories:
+Every fixture owns what it creates and removes only that state:
 
-```
-modules/<name>/tests/
-├── __init__.py
-├── conftest.py                     # shared fixtures for this module
-├── test_service_<domain_a>.py      # one domain per file
-├── test_service_<domain_b>.py
-└── test_security_<name>.py         # exploit/security tests
-```
+- use unique test-owned identifiers;
+- do not depend on execution order;
+- do not truncate shared tables from an ordinary test;
+- declare when committed visibility is required;
+- close sessions, tasks, files, sockets, and containers within bounded cleanup;
+- inject or freeze time, randomness, locale, and provider responses when relevant.
 
-Rules:
-- **No test file over 500 lines.** If it grows beyond that, split by domain.
-- **Shared fixtures in `conftest.py`.** Your test framework discovers them automatically — no explicit imports needed.
-- **One domain per file.** All payment tests in `test_service_payments`. All auth tests in `test_service_auth`. The filename tells you exactly what's inside.
-- **No behavioral changes during splits.** Splitting is a pure refactor — move code between files. Same test count before and after. Same pass/fail results.
+A teardown connection leak or timing race is not “just CI.” It means the suite cannot
+reliably distinguish a source failure from its own lifecycle failure.
+
+## Golden journeys
+
+Maintain a small, named set of production-equivalent journeys for the most valuable
+or dangerous outcomes: onboarding and offboarding, permissions, a representative
+purchase and recovery path, a destructive action, and other domain-critical flows.
+
+A golden journey seeds only the minimum external identity and uses real application
+actions to create later preconditions. It should not manufacture internal database
+state that ordinary users could never create.
+
+Golden journeys are intentionally few. Their purpose is confidence in integration,
+not exhaustive business-rule coverage.
+
+## Handling failures
+
+On the first failure:
+
+1. Preserve the log and exact revision.
+2. Classify source defect, deterministic infrastructure failure, or unresolved flake.
+3. Reproduce the demonstrated condition with the narrowest relevant command.
+4. Fix the cause—not the symptom—with a regression test.
+5. Rerun invalidated checks, then the required final lane.
+
+Arbitrary sleeps, ever-larger timeouts, order-dependent tests, and blind automatic
+reruns hide uncertainty. A retry can help diagnosis; it is not proof of reliability.
+
+## Test organization
+
+Mirror module ownership and name files by behavior. File-size thresholds are
+diagnostic budgets, not universal laws: start with a warning based on local history,
+split by domain when navigation or fixture coupling degrades, and ratchet the budget
+down as large legacy files are decomposed.

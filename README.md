@@ -1,83 +1,127 @@
-# Vibe Coding Standards and Guidelines: An Engineer's Perspective
+# Production-Grade Vibe Coding
 
-> AI agents write code fast. These are the engineering standards that determine whether that code holds up.
+> AI agents make code generation cheap. These standards keep understanding,
+> verification, and change control from becoming the bottleneck.
 
-Vibe coding — building software by directing AI agents in natural language rather than writing most of the code by hand — is a legitimate approach to software development. This is not an argument against it. It's a set of standards for doing it well — drawn from production systems where AI agents and human engineers work together, and from the specific failure modes that appear when they work without structure.
+“Vibe coding” can mean anything from prompting a prototype into existence to
+running AI agents inside a mature engineering system. This guide is for the
+second case: software expected to survive growth, handoffs, incidents, changing
+requirements, and more than one contributor.
 
-The central premise: AI agents amplify whatever is already true about a codebase. A well-structured codebase with clear boundaries becomes more productive with agents. An unstructured one becomes more chaotic, faster. Everything in this document exists to ensure the former.
+The central premise is simple:
 
----
+> Agents amplify the structure that already exists. Clear boundaries, executable
+> contracts, fast feedback, and observable delivery compound into leverage.
+> Ambiguity, hidden coupling, flaky tests, and manual release state compound into
+> rework.
 
-## Table of Contents
+This is a generic guide. Its examples use fictional domains and common technology
+patterns; it intentionally contains no private project details.
 
-1. [What This Document Is — And What It Is Not](docs/00-what-this-document-is.md)
-2. [What Breaks Without These Standards](docs/02-what-breaks.md)
+## Start here
 
-**Architecture**
+If you are adopting these practices incrementally, begin with five moves:
 
-3. [Standard 1: Start With a Modular Monolith](docs/01-modular-monolith.md)
-4. [Standard 2: Constraints Define WHERE and HOW](docs/03-constraints.md)
-5. [Standards 3–9: The Structural Guidelines](docs/04-structural-guidelines.md)
+1. Give every domain an explicit owner and “does not own” boundary.
+2. Put behavior behind typed contracts and enforce dependency direction.
+3. Write a failing behavioral test before changing behavior.
+4. Verify critical journeys through the real integration path.
+5. Make CI and releases revision-bound, observable, and proportional to risk.
 
-**Process**
+The goal is not maximum ceremony. The goal is the smallest system that produces
+trustworthy evidence for the risk of the change.
 
-6. [Standard 10: The Required Development Loop](docs/05-development-loop.md)
-7. [Standards 11–12: The Human Standards](docs/06-human-standards.md)
+## Reading path
 
-**Scaling**
+### 1. Why structure matters
 
-8. [Standard 13: Build for Extractability from Day One](docs/07-extractability.md)
-9. [Standard 14: Agent Teams — Coordinated Multi-Agent Development](docs/08-agent-teams.md)
-10. [Standard 15: Test Infrastructure as Architecture](docs/09-test-infrastructure.md)
-11. [Standard 16: Data Retention as an Architectural Decision](docs/10-data-retention.md)
+- [What this guide is—and is not](docs/00-what-this-document-is.md)
+- [What breaks without durable engineering constraints](docs/02-what-breaks.md)
 
-**Putting It Together**
+### 2. Architecture and ownership
 
-12. [Implementation Guide](docs/11-implementation-guide.md)
+- [Standard 1: Use a modular monolith as the default](docs/01-modular-monolith.md)
+- [Standard 2: Constraints define where and how](docs/03-constraints.md)
+- [Standards 3–9: Structure, specifications, contracts, and guardrails](docs/04-structural-guidelines.md)
+- [Standard 13: Design for change without premature distribution](docs/07-extractability.md)
 
-**Appendix**
+### 3. Building and reviewing changes
 
-- [A: Common Mistakes That Become Rules](docs/appendix/A-common-mistakes.md)
-- [B: Hook Taxonomy](docs/appendix/B-hook-taxonomy.md)
+- [Standard 10: Spec → Contract → Tests → Implementation → Proof](docs/05-development-loop.md)
+- [Standards 11–12: Human judgment and the rule flywheel](docs/06-human-standards.md)
+- [Standard 14: Coordinated agent work](docs/08-agent-teams.md)
 
----
+### 4. Verification and delivery at scale
 
-## Use these standards as skills
+- [Standard 15: Layered, deterministic test infrastructure](docs/09-test-infrastructure.md)
+- [Standard 16: Data lifecycle and state safety](docs/10-data-retention.md)
+- [Standards 17–19: Risk-based CI, code-health ratchets, and release state](docs/11-scalable-delivery.md)
 
-This repo also ships the standards as a set of six **Claude Code skills** that trigger automatically during development — stack-agnostic, for frontend and backend alike. The prose above is the rationale; the skills are the operational version an agent applies while it works.
+### 5. Adoption
 
-| Skill | What it enforces | Standards |
+- [Implementation guide](docs/12-implementation-guide.md)
+
+### Reference
+
+- [Appendix A: Common mistakes that become rules](docs/appendix/A-common-mistakes.md)
+- [Appendix B: Guardrail and hook taxonomy](docs/appendix/B-hook-taxonomy.md)
+
+## The operating model
+
+The guide separates four ideas that are often mixed together:
+
+| Layer | Purpose | Typical evidence |
 |---|---|---|
-| [`architecture-and-module-boundaries`](.skills/architecture-and-module-boundaries/SKILL.md) | Modular-monolith structure, domain modules, enforced boundaries, day-one extractability | 1–3, 13 |
-| [`interface-first-development`](.skills/interface-first-development/SKILL.md) | READMEs as specs + contracts before code; the Spec → Interface → Tests → Implementation loop | 4, 5, 10 |
-| [`tests-as-ground-truth`](.skills/tests-as-ground-truth/SKILL.md) | Tests as the executable spec, run against real (not substitute) infrastructure | 6, 15 |
-| [`agent-team-review-loop`](.skills/agent-team-review-loop/SKILL.md) | Bounded tasks, tool-restricted roles, iterate-until-clean review | 8, 9, 14 |
-| [`guardrails-and-rule-flywheel`](.skills/guardrails-and-rule-flywheel/SKILL.md) | Structural enforcement over docs; PR gate; repeated feedback → automated rules | 7, 11, 12 |
-| [`data-and-state-safety`](.skills/data-and-state-safety/SKILL.md) | Soft-delete + legal erasure, and the recurring persistence pitfalls | 16, App. A |
+| Architecture | Decide ownership and dependency direction | module specifications, typed contracts, boundary checks |
+| Development | Change behavior in a controlled sequence | RED test, focused GREEN checks, reviewed diff |
+| Verification | Prove integrated user-visible behavior | real-engine integration tests, golden journeys, screenshots or API evidence |
+| Delivery | Prove the intended artifact is serving and clean up safely | immutable revision, rollout health, live probes, verified teardown |
 
-Each skill is a self-contained folder under [`.skills/`](.skills/) — a `SKILL.md` plus a `references/` directory. The body stays language-neutral; concrete examples live in `references/backend.md` (Python / SQLAlchemy / pytest) and `references/frontend.md` (TypeScript / React / vitest).
+Fast teams do not collapse these layers into “the tests passed.” They make each
+claim explicit and collect only the evidence needed to support it.
 
-**Use them:** copy (or symlink) any `.skills/<name>/` folder into a directory Claude Code reads:
+## Reusable agent skills
 
-- `~/.claude/skills/` — available in every project you work on, or
-- a project's `.claude/skills/` — that project only.
+The repository also packages the standards as eleven self-contained skills under
+[`.skills/`](.skills/). The prose explains why; the skills turn it into repeatable
+agent behavior.
 
-Claude Code auto-discovers each `SKILL.md` from there — no plugin or install step.
+### Architecture and workflow
 
-### Generic webapp skills
-
-The six skills above carry this document's *architecture* (modular monolith, interface-first, agent teams). Living beside them under [`.skills/`](.skills/) is a second, **architecture-agnostic** set: the correctness-and-trust disciplines that apply to *any* web application — server or client, monolith or not. They were distilled from the failure modes that actually reach production when agents move fast: a UI that renders a plausible lie, a green test suite over a broken route, an optimistic update that hides a failure.
-
-| Skill | What it enforces |
+| Skill | Purpose |
 |---|---|
-| [`frontend-honesty`](.skills/frontend-honesty/SKILL.md) | The UI never displays something untrue — absent ≠ `$0.00`, error ≠ empty, no raw identifiers or echoed backend errors, formatters that reject garbage before coercion, no fabricated stats |
-| [`verify-through-the-real-path`](.skills/verify-through-the-real-path/SKILL.md) | "It works" must be proven through the real request path + the deployed artifact + the genuine UI — not inferred from unit tests that mocked the exact seam that breaks |
-| [`adversarial-exploit-review`](.skills/adversarial-exploit-review/SKILL.md) | Findings are failing exploit tests, not prose; an independent reviewer; ≥2 reviewers with distinct failure lenses on money/auth/migration/data-loss; mutation-test the guards |
-| [`server-authoritative-state`](.skills/server-authoritative-state/SKILL.md) | The client is a cache of server truth — no optimistic flip that masks a failure, cache written from confirmed responses, re-entrancy guards, no client-derived authority |
-| [`clean-migration`](.skills/clean-migration/SKILL.md) | Change an architecture → migrate every call site in the same change and delete the old path; no dual-path shim, no "backward compat" bypass kwarg |
+| [`architecture-and-module-boundaries`](.skills/architecture-and-module-boundaries/SKILL.md) | Domain ownership, dependency direction, structural boundaries, and evolutionary architecture |
+| [`interface-first-development`](.skills/interface-first-development/SKILL.md) | Specifications and contracts before implementation |
+| [`tests-as-ground-truth`](.skills/tests-as-ground-truth/SKILL.md) | Behavioral tests, realistic infrastructure, and deterministic fixtures |
+| [`agent-team-review-loop`](.skills/agent-team-review-loop/SKILL.md) | Bounded assignments, independent review, and efficient repair loops |
+| [`guardrails-and-rule-flywheel`](.skills/guardrails-and-rule-flywheel/SKILL.md) | Repeated findings become automated checks |
+| [`data-and-state-safety`](.skills/data-and-state-safety/SKILL.md) | Transactions, concurrency, retention, deletion, and external effects |
 
-Same layout (`SKILL.md` + `references/{backend,frontend}.md`) and the same install: copy any `.skills/<name>/` into `~/.claude/skills/` or a project's `.claude/skills/`.
+### Application correctness
 
----
+| Skill | Purpose |
+|---|---|
+| [`frontend-honesty`](.skills/frontend-honesty/SKILL.md) | Never display fabricated, stale, or silently failed state |
+| [`verify-through-the-real-path`](.skills/verify-through-the-real-path/SKILL.md) | Prove the real route, artifact, and UI—not only mocked seams |
+| [`adversarial-exploit-review`](.skills/adversarial-exploit-review/SKILL.md) | Independent risk-focused review backed by executable evidence |
+| [`server-authoritative-state`](.skills/server-authoritative-state/SKILL.md) | Server authority, confirmed mutations, and concurrency preconditions |
+| [`clean-migration`](.skills/clean-migration/SKILL.md) | Complete migrations without hidden dual paths |
 
-The engineers who will get the most out of AI agents aren't the ones with the best prompts. They're the ones who built a codebase where agents can work reliably at step 50, not just step 5.
+Each skill is a folder containing `SKILL.md` and optional stack-specific references.
+Copy or link only the skills relevant to a project into the agent’s supported skill
+directory. Repository rules remain authoritative when they are stricter.
+
+## What success looks like
+
+A healthy AI-assisted codebase is not one where agents produce the most code. It is
+one where a new contributor or a fresh agent can answer, quickly and correctly:
+
+- Where does this behavior belong?
+- Which contract defines it?
+- What evidence proves the change?
+- What is the blast radius?
+- Which revision is deployed?
+- How is temporary state removed?
+
+When those answers are structural instead of tribal, agents remain useful at step
+fifty—not only step five.

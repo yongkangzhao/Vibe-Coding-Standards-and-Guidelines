@@ -18,7 +18,8 @@ These are drawn from production systems. Examples use a generic task management 
 
 ### Standard 3: Predictable Structure Over Clever Structure
 
-Every module looks exactly the same:
+Every module follows the same recognizable shape, adapted only where the stack or
+domain requires it:
 
 ```
 modules/task/
@@ -30,7 +31,10 @@ modules/task/
     └── test_service_task.py   # correctness tests (naming per Test Infrastructure)
 ```
 
-This is deliberately boring. Clever code has cognitive overhead — unusual patterns require explanation. Boring, predictable code has zero overhead. An agent (or a new team member) that understands one module understands all of them. Business logic is always in `service.py`. Tables are always in `orm.py`. Public API is always in `__init__.py`.
+This is deliberately boring. Unusual patterns carry cognitive overhead. A contributor
+that understands one module should be able to navigate the others without a search
+expedition. The exact filenames are a guideline; consistent ownership and dependency
+direction are the standard.
 
 When agents don't know where to look, they look everywhere and make assumptions. Predictable structure is the navigation system.
 
@@ -53,7 +57,9 @@ A module without a README is incomplete, regardless of whether the code works.
 
 ### Standard 5: Interfaces Before Implementation
 
-Before any implementation is written, the contract should exist:
+Before any implementation is written, the contract should exist. Contracts may be
+module-owned or collected into a small shared-kernel package; do not let a single
+global interfaces file become an unowned, ever-growing dependency hub.
 
 ```python
 # common/interfaces.py — written first, before service.py exists
@@ -73,7 +79,8 @@ This does several things at once:
 
 - **Defines scope.** If a method isn't in the interface, it isn't part of this service. No ambiguity.
 - **Enables parallel work.** Agent A implements the task module. Agent B implements notification. They never coordinate directly — both work against the same interfaces file. When they're done, the composition root — the single startup location where concrete implementations are constructed and injected — wires them together and they fit.
-- **Makes capabilities legible.** One file. Read it. Know what the entire system can do.
+- **Makes capabilities legible.** A small module-owned surface tells callers what
+  they may depend on without exposing implementation details.
 
 The interface is the AI-to-AI communication protocol.
 
@@ -106,7 +113,9 @@ Here's the distinction that matters most in practice.
 
 A contributing guide that says "don't put business logic in route handlers" is a **guideline**. An agent might read it, might not, might decide this case is special.
 
-A hook that intercepts every file write and rejects it if business logic appears in a route handler is a **guardrail**. The agent cannot violate the rule — the tool call is rejected. It receives:
+A linter, architecture test, or hook that rejects business logic in a route handler is
+a **guardrail**. The violation is detected before merge and returns an actionable
+message:
 
 ```
 ARCHITECTURE VIOLATION: Business logic detected in routes/task.py.
@@ -127,7 +136,9 @@ from modules.task.orm import TaskORM  # nocheck: arch-guard
 
 You can still do the thing. But you do it intentionally, visibly, and with an explanation. `grep '# nocheck'` shows every exception in the codebase.
 
-**Encode constraints in tooling, not just documentation.**
+**Encode constraints in tooling, not just documentation.** Start new guardrails in
+warning mode when legacy debt would otherwise block unrelated work, record the
+baseline, then ratchet so new violations fail without requiring an immediate rewrite.
 
 ### Standard 8: Bounded Scope Creates Reliable Agent Work
 
@@ -135,14 +146,18 @@ The best agent tasks have a defined start (read these files), a clear scope (tou
 
 Architecture designed so most feature work lives within a single module creates natural, right-sized work units. When that's true, agent tasks are bounded, predictable, and auditable. When it isn't — when adding a feature requires changes scattered across five modules — agent tasks become unpredictable, the judgment calls interact, and the result is hard to review and hard to roll back.
 
-### Standard 9: Separate Roles, Separate Agents
+### Standard 9: Separate Authorship From Independent Review
 
-The same agent should not write code, review architecture, and do code quality review. A well-defined agent system has distinct roles:
+The author should not be the only reviewer of meaningful or high-risk work. A
+well-defined agent system separates responsibilities where independence adds value:
 
 - **Implementer**: follows the TDD workflow, builds one module at a time, touches nothing else
 - **Architecture reviewer**: reads code, produces a compliance report, cannot write code
 - **Code quality reviewer**: finds bugs, performance issues, security problems, produces prioritized findings
 
-These roles are enforced — the architecture reviewer literally has no write tools available. It cannot accidentally fix things while reviewing them. An agent with a narrowly scoped role does that role reliably.
+Where the platform supports it, enforce reviewer independence with tool restrictions.
+For small, low-risk changes, a separate final reviewer may be enough; do not create a
+multi-agent ceremony for each mechanical edit. Review depth follows risk, while the
+author never provides the only approval for sensitive changes.
 
 Give agents one job.

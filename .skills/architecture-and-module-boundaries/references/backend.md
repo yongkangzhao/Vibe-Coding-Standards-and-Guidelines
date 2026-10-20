@@ -34,17 +34,16 @@ interface-first-development skill owns *how* you write these; here they pin down
 ```python
 # common/interfaces.py — written before service.py exists
 from typing import Protocol
-from decimal import Decimal
 
 class OrganizationServiceInterface(Protocol):
-    def get_commission_rate(self, org_id: str) -> Decimal: ...
+    def get_default_locale(self, org_id: str) -> str: ...
 
 class NotificationServiceInterface(Protocol):
     def notify_completion(self, entity_id: str) -> None: ...
 ```
 
 A method not in the interface is not part of the service. That single line —
-`get_commission_rate(org_id) -> Decimal` — ends the "which module owns the commission rate?"
+`get_default_locale(org_id) -> str` — ends the "which module owns the default locale?"
 debate by making the answer structural.
 
 ## Opaque IDs across boundaries

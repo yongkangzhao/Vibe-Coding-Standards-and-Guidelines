@@ -8,23 +8,23 @@ The client reflects what you return. If you return nothing (or echo the request 
 
 ```python
 # ❌ Returns 204; client has to invent the new state and patch its cache by hand
-@router.patch("/courts/{court_id}", status_code=204)
-def update_court(court_id: UUID, patch: CourtUpdate, db: Session = Depends(get_db)) -> None:
-    court = _get(db, court_id)
+@router.patch("/documents/{document_id}", status_code=204)
+def update_document(document_id: UUID, patch: DocumentUpdate, db: Session = Depends(get_db)) -> None:
+    document = _get(db, document_id)
     for k, v in patch.model_dump(exclude_unset=True).items():
-        setattr(court, k, v)
+        setattr(document, k, v)
     db.flush()
     return None  # client now guesses; its guess drifts from server-applied defaults/triggers
 
 # ✅ Return the persisted row so the client overwrites its cache with truth
-@router.patch("/courts/{court_id}", response_model=CourtResponse)
-def update_court(court_id: UUID, patch: CourtUpdate, db: Session = Depends(get_db)) -> CourtResponse:
-    court = _get(db, court_id)
+@router.patch("/documents/{document_id}", response_model=DocumentResponse)
+def update_document(document_id: UUID, patch: DocumentUpdate, db: Session = Depends(get_db)) -> DocumentResponse:
+    document = _get(db, document_id)
     for k, v in patch.model_dump(exclude_unset=True).items():
-        setattr(court, k, v)
+        setattr(document, k, v)
     db.flush()
-    db.refresh(court)              # pick up DB-computed columns (updated_at, server defaults)
-    return CourtResponse.model_validate(court)
+    db.refresh(document)              # pick up DB-computed columns (updated_at, server defaults)
+    return DocumentResponse.model_validate(document)
 ```
 
 ## Authority is computed and returned by the server
@@ -33,19 +33,19 @@ The client renders permissions, prices, and availability; it must never derive t
 
 ```python
 # ✅ The response carries the authority the UI needs — no client-side derivation
-class BookingResponse(BaseModel):
+class OrderResponse(BaseModel):
     id: UUID
     price_cents: int            # the price the user WILL be charged, computed here
     can_cancel: bool            # the server's permission decision, not user.id == owner_id
     available_slots: list[Slot] # availability the server computed, not a client rule
 
-def get_booking(booking_id: UUID, caller: UUID, db: Session) -> BookingResponse:
-    booking = _get(db, booking_id)
-    return BookingResponse(
-        id=booking.id,
-        price_cents=pricing.quote(booking),                 # one source of price truth
-        can_cancel=perms.can(caller, booking.facility_id, "booking:cancel"),
-        available_slots=calendar.open_slots(booking.court_id),
+def get_order(order_id: UUID, caller: UUID, db: Session) -> OrderResponse:
+    order = _get(db, order_id)
+    return OrderResponse(
+        id=order.id,
+        price_cents=pricing.quote(order),                 # one source of price truth
+        can_cancel=perms.can(caller, order.workspace_id, "order:cancel"),
+        available_slots=calendar.open_slots(order.document_id),
     )
 ```
 
@@ -60,12 +60,12 @@ class AvailabilityReplace(BaseModel):
     version: int                # the version the client loaded
     slots: list[SlotInput]
 
-def replace_availability(court_id: UUID, body: AvailabilityReplace, db: Session) -> AvailabilityResponse:
+def replace_availability(document_id: UUID, body: AvailabilityReplace, db: Session) -> AvailabilityResponse:
     # ❌ No precondition: a stale editor's slots clobber a fresher save and nobody notices.
     # ✅ Atomic compare-and-set: only bump version if it still matches what the client loaded.
     bumped = db.scalar(
         update(AvailabilityORM)
-        .where(AvailabilityORM.court_id == court_id)
+        .where(AvailabilityORM.document_id == document_id)
         .where(AvailabilityORM.version == body.version)     # the precondition
         .values(version=AvailabilityORM.version + 1)
         .returning(AvailabilityORM.version)
@@ -73,9 +73,9 @@ def replace_availability(court_id: UUID, body: AvailabilityReplace, db: Session)
     if bumped is None:
         # current version != loaded version → someone saved in between
         raise HTTPException(status_code=409, detail="stale_version")  # client: reload + retry
-    _replace_slots(db, court_id, body.slots)
+    _replace_slots(db, document_id, body.slots)
     db.flush()
-    return _load(db, court_id)
+    return _load(db, document_id)
 ```
 
 The `.where(version == loaded)` guard *is* the lock — it is enforced in one atomic UPDATE, not a read-then-write that a concurrent request can interleave.
@@ -113,28 +113,28 @@ def charge(self, user_id: UUID, method_id: UUID, amount: int, db: Session) -> Ch
 The client guards re-entrancy, but a retry still reaches you. Collapse duplicates server-side so a second arrival is a no-op that returns the first result.
 
 ```python
-def create_booking(self, key: str, req: BookingCreate, db: Session) -> BookingResponse:
-    existing = db.scalar(select(BookingORM).where(BookingORM.idempotency_key == key))
+def create_order(self, key: str, req: OrderCreate, db: Session) -> OrderResponse:
+    existing = db.scalar(select(OrderORM).where(OrderORM.idempotency_key == key))
     if existing is not None:
-        return BookingResponse.model_validate(existing)   # replay, don't double-book
-    booking = BookingORM(idempotency_key=key, **req.model_dump())
-    db.add(booking)
+        return OrderResponse.model_validate(existing)   # replay, don't double-book
+    order = OrderORM(idempotency_key=key, **req.model_dump())
+    db.add(order)
     db.flush()   # UNIQUE(idempotency_key) is the real guard under a race
-    return BookingResponse.model_validate(booking)
+    return OrderResponse.model_validate(order)
 ```
 
 ## Testing the contract
 
 ```python
-def test_failed_update_leaves_state_unchanged(db, court):
+def test_failed_update_leaves_state_unchanged(db, document):
     with pytest.raises(ForbiddenError):
-        svc.update_court(court.facility_id, court.id, caller="intruder", name="hacked")
-    assert _get(db, court.id).name == court.name           # server state never moved
+        svc.update_document(document.workspace_id, document.id, caller="intruder", name="hacked")
+    assert _get(db, document.id).name == document.name           # server state never moved
 
-def test_stale_replace_all_is_rejected(db, court):
-    v0 = svc.get_availability(court.id).version
-    svc.replace_availability(court.id, AvailabilityReplace(version=v0, slots=[...]))  # bumps to v1
+def test_stale_replace_all_is_rejected(db, document):
+    v0 = svc.get_availability(document.id).version
+    svc.replace_availability(document.id, AvailabilityReplace(version=v0, slots=[...]))  # bumps to v1
     with pytest.raises(HTTPException) as e:                 # second editor still on v0
-        svc.replace_availability(court.id, AvailabilityReplace(version=v0, slots=[...]))
+        svc.replace_availability(document.id, AvailabilityReplace(version=v0, slots=[...]))
     assert e.value.status_code == 409                       # newer save not silently clobbered
 ```

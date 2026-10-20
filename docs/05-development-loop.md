@@ -1,54 +1,126 @@
-# Standard 10: The Required Development Loop — Spec → Interface → Tests → Implementation
+# Standard 10: Spec → Contract → Tests → Implementation → Proof
 
-> A human engineer might skip the spec and rely on domain knowledge accumulated over months. An agent starts fresh every session — it has no internalized context. Without spec, interface, and tests already in place, the agent designs on the fly, and its design reflects local context rather than the global architecture decisions that have already been made. The development loop exists to ensure that by the time an agent writes implementation code, three layers of constraints already define what "correct" looks like.
+> Code generation should begin only after the change has a home, a contract, and
+> an observable definition of correctness.
 
-> **Standards** (must follow):
-> - Follow the sequence: Spec, Interface, Tests, Implementation — in that order
-> - Tests must fail before implementation begins (TDD red phase confirmation)
-> - Interfaces must exist in the shared contracts file before any service code is written
+> **Standards**
+> - Classify the job and its risk before choosing the workflow.
+> - Define ownership and externally visible behavior before implementation.
+> - For a behavior change, demonstrate a meaningful RED state before GREEN.
+> - Finish with evidence through the real integration path appropriate to the risk.
 >
-> **Guidelines** (recommended):
-> - Exact spec format (README structure, level of detail)
-> - Test framework and fixture conventions
-> - How to handle iterative refinement within the loop
+> **Guidelines**
+> - A module README is a strong specification format, but not the only one.
+> - Contracts may be typed interfaces, API schemas, events, or state machines.
+> - Low-risk documentation or mechanical refactors need proportionate evidence,
+>   not artificial tests.
 
-Standards 3–9 describe the structure. This is the process — the order of operations for every new module or feature:
+## 1. Classify the job
 
-```
-1. Spec        — README: what does this module own? what does it NOT own?
-2. Interface   — method signatures in interfaces.py, before any implementation
-3. Tests       — write against the interface; confirm they FAIL (red phase)
-4. Implementation — make tests pass, within the constraints already set
-5. Verify      — drive the real path; observe it working in the deployed environment
-```
+Different jobs start at different places:
 
-By the time you write implementation code, three layers of constraints already exist. Implementation's only job is to satisfy them. And after implementation, one gate remains: confirming the thing actually runs through its real path — because "tests green" is not the last word.
+| Job | First evidence |
+|---|---|
+| New feature or capability | ownership map, journey, contract, failing behavior test |
+| Bug fix | failing reproduction of the reported behavior |
+| Refactor with no behavior change | characterization tests of current behavior |
+| Migration | old/new schema and rollback or forward-recovery contract |
+| Documentation or mechanical change | rendered/structural validation and affected guardrails |
 
-**Spec first.** The README isn't documentation written after the fact — it's the design decision that happens before any code. It answers "what belongs here?" and crucially, "what does NOT belong here?" This is where the commission rate debate gets resolved. Once it's in the spec, the interface encodes it, and the question is closed.
+Do not force every edit through identical ceremony. Do force every behavioral claim
+to have evidence capable of disproving it.
 
-**Interface second.** Not the implementation — just the shape:
+## 2. Specify ownership and the journey
+
+Before implementation, write down:
+
+- the outcome and actors;
+- the ordered user or system journey;
+- what the affected module owns and does not own;
+- the authoritative source of state;
+- the failure and recovery behavior;
+- privacy, security, accessibility, and operational constraints;
+- the evidence required before merge and after deployment.
+
+This step prevents “locally reasonable” work from inventing a second scheduler,
+ledger, permission model, or source of truth.
+
+## 3. Define the contract
+
+Express the boundary without exposing implementation details. Depending on the
+system, this may be a protocol, API schema, event, command, or state transition:
 
 ```python
-# common/interfaces.py — written before service.py exists
-
-class NotificationServiceInterface(Protocol):
-    def notify_assignment(self, entity_id: str, user_id: str) -> None: ...
-    def notify_completion(self, entity_id: str) -> None: ...
+class NotificationPort(Protocol):
+    def notify_assignment(self, entity_id: str, recipient_id: str) -> None: ...
 ```
 
-This locks scope (if it's not in the interface, it's not part of this module), enables parallel agent work (other modules build against this before the implementation exists), and gives the implementer agent a concrete target.
+Prefer module-owned contracts. A central contract package is appropriate for a
+small shared kernel, but it should not become a global junk drawer.
 
-**Tests third — and they must fail.** Write tests against the interface before implementation exists. Every test should fail (stubs raise `NotImplementedError`). If tests pass before implementation, the tests are wrong. Confirm the red state — it's not a formality, it's proof that the tests describe real behavior.
+Contracts make parallel work possible and give tests a stable surface. They do not
+eliminate design changes; when evidence shows the contract is wrong, revise the
+specification and all affected callers deliberately.
 
-**Implementation last.** The agent reads the interface, reads the failing tests, and writes code until they pass. There is no design work left. There is only build work. This is the constraint that keeps agents focused and prevents them from inventing architecture mid-implementation.
+## 4. Establish RED
 
-**Verify through the real path — "tests green" is not the last gate.** Passing tests prove the units behave as their seams describe; they do not prove the wired-up system serves a real request. The loop is not done until the change has been exercised through its actual path and *observed working in the deployed environment*. Two failure modes hide precisely in the gap that green tests leave open:
+Write the smallest test that demonstrates the missing or broken behavior and run it.
+The failure must be for the intended reason—not a syntax error, missing fixture, or
+unrelated environment failure.
 
-- **Unit tests certify the seams, not the wiring between them.** A handler that reads `current_user.uid` when the auth model field is `user_id` raises `AttributeError` and 500s every caller — yet every unit test stays green, because they mock the network or call the service directly and never run the three lines of router glue. An end-to-end assertion must drive the **real route** (real router, real dependency, real auth model), not a mocked stand-in for it.
-- **An empty page is not proof of correctness.** A failed fetch can render as an empty-state, a `null` can render as `$0.00`, an optimistic update can show a phantom success — the screen looks fine while the truth is broken. So for any UI change, the closing evidence is a **visual proof**: render the actual route at the reviewed viewport, against staging-like data, with the change applied, and capture the screenshot *after* the page-specific content is in the DOM — not a passing test, not a code reading, not an HTML mock.
+For a refactor, RED may be a deliberately introduced mutation proving the
+characterization test can fail. For a pure documentation change, RED is usually not
+meaningful; use a link, render, schema, or generation check instead.
 
-Treat this as the final, non-skippable step of the loop: a real-route/e2e assertion plus a genuine observation (a journey test green against the wired system; a screenshot of the real screen for UI work). When the deployed app misbehaves, also resist blaming the deploy reflexively — `git diff` the working tree first; most often the deploy shipped exactly what's committed, and the committed code is the bug.
+## 5. Implement and refactor
 
-The critical point for AI agents specifically: a human engineer might skip the spec and rely on domain knowledge. An agent starts fresh every session — it has no internalized context. Without spec, interface, and tests already in place, the agent designs on the fly, and its design reflects local context, not the global architecture decisions that have already been made. And an agent will report "all tests pass" as "done" unless the loop forces it to look at the real thing running — because to the agent, a green test suite is indistinguishable from a working feature until something makes it observe otherwise.
+Make the focused test pass with the smallest coherent change. While editing:
 
-**Design is a human activity. Implementation is what agents do.**
+- run cheap, relevant checks first;
+- preserve module boundaries and transaction ownership;
+- delete replaced paths instead of hiding a migration behind dual behavior;
+- update specification and contract when implementation evidence changes them;
+- keep the diff reviewable as one user outcome.
+
+GREEN is not the finish line. It means the local claim now holds.
+
+## 6. Review according to risk
+
+Every meaningful change needs an independent view of the diff. Sensitive surfaces—
+money, identity, authorization, privacy, migrations, destructive actions, and
+shared infrastructure—need additional lenses and executable adversarial evidence.
+
+Batch reviewer findings into a repair round where practical. Re-review the changed
+scope and affected invariants; do not rerun an identical review merely for ceremony.
+
+## 7. Prove the real path
+
+Unit tests certify local behavior, not wiring. Finish with the narrowest real-path
+evidence that can prove the outcome:
+
+- an in-process request through the real router and production-shaped auth;
+- a real database engine for persistence and concurrency semantics;
+- a golden journey across module boundaries;
+- a genuine UI route with honest loading, empty, error, and success states;
+- an immutable artifact and a post-deploy probe bound to its revision.
+
+For UI work, capture visual evidence only after page-specific content is present.
+For deployment work, “the workflow ran” is not proof; observe the intended artifact
+serving and the environment converged.
+
+## The loop
+
+```text
+classify
+  → specify ownership and journey
+    → define contract
+      → prove RED
+        → implement GREEN
+          → independent review
+            → prove the real path
+              → merge and observe rollout
+```
+
+The human role is to own intent, risk, and acceptance. Agents can contribute to
+design and implementation, but important decisions must be represented in durable
+artifacts rather than left in one conversation.

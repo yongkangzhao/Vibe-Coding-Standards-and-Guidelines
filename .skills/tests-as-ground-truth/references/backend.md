@@ -18,7 +18,9 @@ modules/task/
     └── test_security_task.py       # exploit / authz tests
 ```
 
-`conftest.py` is discovered automatically — no imports. Keep each `test_service_<domain>.py` under ~500 lines; when it grows, move tests into a new domain file (pure refactor: same count, same results).
+`conftest.py` is discovered automatically—no imports. Use the repository's
+ratcheting size/coupling budget; when a file becomes a navigation bottleneck, move
+tests into a cohesive domain file as a pure refactor with the same count and results.
 
 ## Disposable real-engine fixture
 

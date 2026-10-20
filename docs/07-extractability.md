@@ -1,42 +1,76 @@
-# Standard 13: Build for Extractability from Day One
+# Standard 13: Design for Change Without Premature Distribution
 
-> Agents can't reason about future architecture. They optimize for what works now, in the current session, with the current context. If module boundaries aren't enforced through interfaces and dependency injection from day one, agents will create direct couplings that make future extraction expensive. By the time you need microservices, the codebase is too entangled to extract — not because the agents were wrong, but because nothing prevented them from taking shortcuts that felt locally correct.
+> Good module boundaries make change local. They may also make later service
+> extraction easier, but extraction is an option—not the goal of every module.
 
-> **Standards** (must follow):
-> - Interface-based dependency injection from day one — every service implements a Protocol
-> - Cross-module dependencies wired at a single composition root
-> - Modules use opaque identifiers, not direct ORM foreign keys across module boundaries
+> **Standards**
+> - Each domain has explicit ownership and dependency direction.
+> - Cross-module calls use a narrow public contract, not another module’s internals.
+> - Construction and wiring happen in known composition roots.
+> - Service extraction requires measured operational or organizational need.
 >
-> **Guidelines** (recommended):
-> - Specific DI framework or composition root pattern
-> - How to structure the composition root for testability
-> - When to actually extract a module to a service (scale signals)
+> **Guidelines**
+> - Use dependency injection where substitution or isolation has real value.
+> - Prefer identifiers and contracts that do not expose persistence internals.
+> - Keep in-process calls in-process until distribution solves a demonstrated problem.
 
-*Extractability* is the property that any module can later be lifted out into its own service without rewriting the code that calls it. You design for it from day one so that growth never forces a rewrite.
+## Evolutionary architecture
 
-The biggest objection to careful early architecture is "we're too small for this." In a narrow sense, that's true. A small team doesn't need microservices.
+The purpose of a modular monolith is not to simulate microservices inside one
+process. It is to make ownership and change boundaries explicit while preserving
+simple transactions, debugging, deployment, and local development.
 
-But the decisions you make in a modular monolith today are the same decisions you'd make in a microservices architecture. They're not premature — they're early.
+A well-shaped module can evolve in several ways:
 
-Return to the commission rate example. If the platform eventually grows large enough that transaction processing needs its own service:
+- split an oversized implementation into internal components;
+- move a reusable policy into a deliberately small shared kernel;
+- publish an event to decouple a non-transactional reaction;
+- extract a workload that needs independent scale or isolation;
+- remain an in-process module indefinitely.
 
-```python
-# Today — local module call
-self.org_service: OrganizationServiceInterface = OrganizationService(db)
+All are valid outcomes.
 
-# Tomorrow — remote service call
-self.org_service: OrganizationServiceInterface = OrganizationHTTPClient(
-    base_url=settings.ORG_SERVICE_URL
-)
-```
+## What makes change tractable
 
-The composition root is the only place the wiring changes — every module that calls `self.org_service.get_commission_rate(org_id)` keeps compiling against the same interface, not a concrete class. That is what makes extraction *tractable* rather than a rewrite.
+1. **Narrow public surface.** Callers depend on capabilities, not ORM objects or
+   internal helpers.
+2. **Explicit composition.** Concrete implementations are selected in a known
+   wiring location rather than instantiated throughout the codebase.
+3. **Owned data.** One module defines the meaning and mutation rules for its state.
+4. **Characterization tests.** Existing behavior is executable before internals move.
+5. **Observable dependencies.** Architecture checks can show cycles, fan-in, and
+   growth in shared surfaces.
 
-What the shared interface does **not** do for free: crossing a network boundary adds concerns an in-process call never had — timeouts, retries, and partial failures the caller must now handle; serialization of `Decimal`, `UUID`, and `datetime` over the wire; the loss of a single database transaction spanning both modules; latency on every call; and authentication on the new boundary. The Protocol keeps the *call sites* stable; you still have to do the distributed-systems work behind the seam.
+These properties improve ordinary refactoring even if no service is ever extracted.
 
-This works because:
-1. Every service implements a `Protocol` interface, not a class
-2. Cross-module dependencies are injected at a single location (the composition root)
-3. Modules use opaque string identifiers, not database foreign keys — no ORM coupling to unpick
+## When extraction is justified
 
-A codebase built this way is *extraction-ready* from day one. Not because microservices were the target, but because module isolation and interface contracts are the same idea at different scales — and when the day comes, you are hardening one existing seam, not carving a new boundary through entangled code.
+Consider an independent service when evidence shows at least one durable need:
+
+- independent scaling characteristics;
+- fault or security isolation;
+- regulatory or data-residency boundaries;
+- materially different availability requirements;
+- independent release ownership by a stable team;
+- a workload with a natural asynchronous boundary.
+
+Document the decision in an ADR. Include transaction changes, consistency model,
+latency budget, retries and idempotency, authentication, observability, deployment,
+rollback, data migration, and operational ownership.
+
+A typed in-process contract reduces call-site churn, but it does not make a remote
+call equivalent. Networks add partial failure, serialization, latency, authentication,
+and the loss of one database transaction. Those costs must be designed explicitly.
+
+## Modernizing large modules
+
+Do not answer a large file with a large rewrite. Use a ratchet:
+
+1. Record current size, complexity, dependencies, and slow tests.
+2. Add characterization tests around one cohesive responsibility.
+3. Move that responsibility behind a reviewed internal contract.
+4. Migrate all callers and delete the old path in the same change.
+5. Lower the recorded budget so the old shape cannot return.
+
+This turns architecture improvement into a sequence of reviewable outcomes rather
+than a risky, open-ended cleanup project.

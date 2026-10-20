@@ -1,41 +1,85 @@
-# Standard 16: Data Retention as an Architectural Decision
+# Standard 16: Treat Data Lifecycle and State Safety as Architecture
 
-> Agents default to hard-delete. Tell an agent to "delete a post" and it writes `DELETE FROM posts WHERE id = ?` — permanent, irrecoverable removal. This is the locally obvious implementation, and agents will produce it every time unless the codebase structurally steers them toward soft-delete. User-generated content is a business asset that feeds analytics, recommendations, and audit trails. Once hard-deleted, it cannot be recovered.
+> “Delete” is not one operation. Product removal, account closure, fraud retention,
+> legal hold, backup expiry, and verified erasure have different requirements.
 
-> **Standards** (must follow):
-> - Soft-delete user-generated content by default (set `deleted_at`, not `DELETE FROM`)
-> - Filter deleted content in all queries (`WHERE deleted_at IS NULL`)
-> - Block new interactions on deleted content (raise errors, don't create orphaned records)
-> - Keep a real hard-delete path for legal erasure (GDPR/CCPA right to be forgotten)
+> **Standards**
+> - Classify data by purpose, sensitivity, owner, retention, and erasure behavior.
+> - Collect and retain only what has a documented purpose.
+> - Separate ordinary product deletion from verified legal erasure.
+> - Make concurrency, idempotency, and external-side-effect boundaries explicit.
 >
-> **Guidelines** (recommended):
-> - Specific soft-delete implementation pattern (`deleted_at` timestamp column)
-> - Archive-to-cold-storage strategy for cleanup
-> - How to encode soft-delete as a rule and enforce it in hooks
+> **Guidelines**
+> - Soft deletion is useful when recovery, audit, or relational continuity is a
+>   legitimate documented requirement; it is not a universal default.
+> - Use automated policy manifests and tests to keep schema and lifecycle behavior aligned.
 
-When an agent implements a "delete" feature, it will default to `DELETE FROM` — permanent removal. This is usually wrong.
+## Classify before implementing
 
-User-generated content — posts, comments, messages, votes, interactions — is a business asset. It feeds analytics, recommendation systems, and potentially ML models. Hard-deleting it destroys value that cannot be recovered.
+For each table, document:
 
-**Default to soft-delete everywhere:**
+| Question | Example answers |
+|---|---|
+| Purpose | account operation, user content, security audit, billing record |
+| Sensitivity | public, internal, personal, credential, regulated |
+| Authoritative owner | identity module, content module, ledger |
+| Ordinary deletion | immediate hard delete, tombstone, anonymize, archive |
+| Retention | none, fixed period, contractual, statutory |
+| Erasure | delete, irreversibly anonymize, retain under exception |
+| Derived copies | cache, search index, analytics, media, provider |
+| Recovery | supported window and authority, or explicitly none |
 
-```python
-# ❌ Agent's instinct — permanent deletion
-def delete_post(self, post_id: UUID) -> None:
-    self._db.delete(post)
-    self._db.flush()
+“Keep it because it may be valuable later” is not a retention policy. Neither is
+“hard-delete everything” a safe default. Purpose, consent, contractual obligations,
+law, security, and user expectations determine the lifecycle.
 
-# ✅ Correct — soft delete preserves data
-def delete_post(self, post_id: UUID) -> None:
-    post.deleted_at = datetime.now(timezone.utc)
-    self._db.flush()
-```
+## Ordinary deletion and legal erasure
 
-The follow-up requirements:
-1. **Filter deleted content in queries**: `WHERE deleted_at IS NULL`
-2. **Block new interactions on deleted content**: voting on a deleted post should raise `NotFoundError`, not create an orphaned vote
-3. **Don't hard-delete user-generated content on the default path**: if cleanup is needed, archive to cold storage
+Ordinary deletion may preserve a tombstone or audit relationship when recovery,
+moderation, reconciliation, or referential integrity requires it. Queries and
+interactions must consistently respect that state.
 
-**The exception — legal erasure.** "Soft-delete by default" is not "never hard-delete." Privacy law — GDPR Article 17's right to erasure, CCPA's right to delete — can *require* irreversible removal of a person's data on request, and a `deleted_at` tombstone that keeps the row does not satisfy it. Build a deliberate hard-delete path for exactly these cases: scoped to verified erasure requests, audited, and kept separate from the everyday "delete this post" flow. The default protects business data from accidental loss; the exception keeps you lawful. Both are architectural decisions, made on purpose.
+Verified erasure is a separate, audited workflow. It must address all copies:
+primary rows, projections, search indexes, caches, media, providers, exports, and
+backup expiry policy. Where an obligation requires retention, minimize and isolate
+the retained fields and document the authority.
 
-This is an architectural decision that affects every module. Encode it in a rule, enforce it in hooks, and make it explicit in module READMEs. When an agent is told to "delete" something, the rule should guide it to soft-delete by default — and route genuine erasure requests to the audited hard-delete path.
+Never claim compliance because a `deleted_at` column exists.
+
+## Concurrency and transactions
+
+State changes need explicit invariants:
+
+- counters use atomic updates when concurrent writers exist;
+- balances, quotas, and inventory use locking or compare-and-swap appropriate to
+  the invariant;
+- replace-all writes carry a version precondition;
+- savepoints wrap the mutation they are expected to undo;
+- list queries have deterministic ordering;
+- ORM and migration schemas remain in parity.
+
+The database transaction is the consistency boundary. Do not keep it open while
+waiting on an uncontrolled network call.
+
+## External effects
+
+“Call the provider first” and “write the database first” can both be wrong. Choose a
+pattern based on the effect:
+
+- idempotency key plus retryable provider operation;
+- durable intent/outbox written in the transaction, delivered after commit;
+- provider call followed by idempotent reconciliation;
+- compensating action when an atomic outcome is impossible.
+
+Record provider identifiers and reconciliation state durably. Never hold row locks
+through a slow external request, and never assume a process-local callback is durable.
+
+## Enforcement
+
+Schema changes that add personal or regulated data should fail CI unless they update
+the lifecycle policy and applicable export/erasure tests. Repeated mistakes—missing
+ordering, migration drift, unsafe increments—should become automated checks with a
+traceable suppression mechanism.
+
+Data safety is not a cleanup phase. It is part of the contract for every stateful
+feature.
