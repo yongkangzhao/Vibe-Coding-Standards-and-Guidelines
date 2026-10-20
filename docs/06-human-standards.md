@@ -47,7 +47,12 @@ Here's the failure mode that doesn't get talked about enough: **if a human gives
 
 Agents don't push back on bad commands. They implement them.
 
-If you don't know the codebase already settled commission rates into the organization module — not because it was the only defensible home, but because that's where the interface put them — and you tell an agent "add commission rate tracking to the platform module," the agent builds it there. Now you have a feature-sized violation, woven through the platform module, contradicting the established contract. Fixing it means a large refactor. Large refactors generate large PRs. Large PRs are hard to review properly. When PRs are hard to review properly, rules get bypassed "just this once." And once that starts, the rules become less meaningful.
+If you don't know the codebase already settled default locales into the workspace
+module—and you tell an agent to add the same setting to account preferences—the
+agent may build a second source of truth. Now the violation is woven through a
+feature and contradicts the established contract. Repair becomes a larger migration,
+the diff becomes harder to review, and pressure grows to bypass rules “just this
+once.”
 
 The human's job is no longer primarily to write code. It's to understand the system well enough to direct it correctly:
 

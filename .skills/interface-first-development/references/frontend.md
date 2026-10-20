@@ -2,7 +2,7 @@
 
 The frontend analog of Spec -> Interface -> Tests -> Implementation. The frontend is a thin
 presentation layer: contracts here are typed component props/events and a typed API-client
-interface. Business logic (pricing, the commission rate itself) lives in the backend — the
+interface. Preference policy (including the default locale) lives in the backend — the
 client only *calls* it. Write the README, the types, and the failing tests before the component.
 
 ## 1. Spec — `features/org-settings/README.md`
@@ -14,7 +14,7 @@ client only *calls* it. Write the README, the types, and the failing tests befor
 Renders and edits an organization's settings. Presentation only.
 
 ## Does NOT own
-- Computing or validating the commission rate → backend `organization` service.
+- Validating the default locale → backend `organization` service.
   We display and submit it; we do not decide what is valid beyond surfacing API errors.
 - Auth / session → `auth` feature.
 - Persisting state → server is the source of truth; we hold view state only.
@@ -38,12 +38,12 @@ Renders and edits an organization's settings. Presentation only.
 export interface Organization {
   id: string;
   name: string;
-  commissionRate: string; // decimal-as-string; backend owns the value
+  defaultLocale: string; // BCP 47 tag; backend owns the accepted set
 }
 
 export interface OrgSettingsFormProps {
   org: Organization;
-  onSubmit: (next: { commissionRate: string }) => void; // event contract
+  onSubmit: (next: { defaultLocale: string }) => void; // event contract
   isSaving: boolean;
 }
 ```
@@ -51,9 +51,9 @@ export interface OrgSettingsFormProps {
 ```typescript
 // features/org-settings/api/org-client.ts — the data contract, defined before impl
 export interface OrgApiClient {
-  // The single typed entry point to the backend's authoritative rate.
-  getCommissionRate(orgId: string): Promise<string>;
-  setCommissionRate(orgId: string, rate: string): Promise<void>;
+  // The typed entry point to the backend's authoritative locale setting.
+  getDefaultLocale(orgId: string): Promise<string>;
+  setDefaultLocale(orgId: string, locale: string): Promise<void>;
 }
 ```
 
@@ -78,20 +78,20 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { OrgSettingsForm } from './OrgSettingsForm';
 
-const org = { id: 'o1', name: 'Acme', commissionRate: '0.15' };
+const org = { id: 'o1', name: 'Example', defaultLocale: 'en-GB' };
 
 describe('OrgSettingsForm', () => {
-  it('shows the current commission rate from props', () => {
+  it('shows the current default locale from props', () => {
     render(<OrgSettingsForm org={org} isSaving={false} onSubmit={vi.fn()} />);
-    expect(screen.getByLabelText(/commission rate/i)).toHaveValue('0.15');
+    expect(screen.getByLabelText(/default locale/i)).toHaveValue('en-GB');
   });
 
-  it('emits onSubmit with the edited rate (no client-side validation logic)', () => {
+  it('emits onSubmit with the selected locale (no duplicated policy logic)', () => {
     const onSubmit = vi.fn();
     render(<OrgSettingsForm org={org} isSaving={false} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByLabelText(/commission rate/i), { target: { value: '0.2' } });
+    fireEvent.change(screen.getByLabelText(/default locale/i), { target: { value: 'fr-FR' } });
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
-    expect(onSubmit).toHaveBeenCalledWith({ commissionRate: '0.2' });
+    expect(onSubmit).toHaveBeenCalledWith({ defaultLocale: 'fr-FR' });
   });
 });
 ```

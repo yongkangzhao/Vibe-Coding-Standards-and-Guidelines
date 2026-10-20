@@ -40,7 +40,7 @@ from app.models import User
 
 def override_user():
     # Production-shaped: the real model, real field names. A dict/Mock here would hide the .uid bug.
-    return User(user_id="user-123", email="a@b.co")
+    return User(user_id="user-123", email="user@example.test")
 
 app.dependency_overrides[get_current_user] = override_user
 client = TestClient(app)

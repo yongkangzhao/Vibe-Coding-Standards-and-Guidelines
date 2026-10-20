@@ -1,68 +1,77 @@
-# What This Document Is — And What It Is Not
+# What This Guide Is—and Is Not
 
-> Most vibe coding guides tell you how to prompt better. None of them tell you what to build before you start prompting. AI agents start fresh every session, carry no institutional memory, and will confidently build the wrong thing in the wrong place if the codebase doesn't structurally prevent it. This document exists because the gap between "good prompting advice" and "a codebase that survives month three" is entirely structural — and nobody else is naming the structure.
+AI coding tools reduce the cost of producing a plausible implementation. They do
+not reduce the need to decide ownership, protect data, verify integrations, or know
+which artifact is running. In practice, lowering the cost of writing code moves the
+bottleneck toward specification, review, and evidence.
 
-Vibe coding has attracted a wave of guides, best practices, and community discussion. The picture that emerges from reading across formal guides, engineering blogs, and developer communities is consistent — and consistently incomplete.
+This guide describes an engineering system for that new bottleneck.
 
-### What the Existing Guides Get Right
+## The scope
 
-The most commonly recommended practices across formal guides are:
+The intended audience is building software that must be maintained: a product with
+users, state, integrations, multiple contributors, or meaningful operational risk.
+For a disposable experiment, many of these controls are unnecessary. If the
+experiment becomes a product, adopt the controls before its accidental architecture
+hardens into dependencies and data.
 
-- **Prompt engineering**: be specific, layer context, break tasks into small increments, ask before implementing
-- **Version control**: use git, commit frequently, revert when the AI breaks something
-- **Test after every change**: don't let AI changes accumulate unreviewed
-- **Documentation**: maintain READMEs and comments because you didn't write the code line by line
-- **Security basics**: don't hardcode credentials, validate inputs, do code review before deployment
-- **Simple tech stacks**: choose mature, well-documented technologies that AI tools understand
+The standards cover:
 
-These are sound practices. None of them are wrong.
+1. Domain ownership and modular architecture.
+2. Specifications and typed contracts.
+3. Test-first behavior changes and realistic integration evidence.
+4. Independent, risk-calibrated review.
+5. CI selection, deployment identity, preview lifecycle, and cleanup.
+6. Data retention, erasure, concurrency, and external effects.
+7. Gradual modernization of large codebases.
 
-### What the Developer Community Is Actually Experiencing
+## Why agent-assisted codebases fail differently
 
-The gap between formal best-practice guides and real developer experiences is significant. Across community forums, the same failure patterns appear independently, described by people who hit them without having read the same guides:
+The underlying defects are familiar: duplicated behavior, hidden coupling, missing
+authorization, nondeterministic tests, stale deployments, and undocumented state.
+Agents change their rate and shape:
 
-**The three-month wall.** Multiple developers independently describe hitting a point — typically around the three-month mark — where the codebase has grown beyond anyone's ability to understand it. One AI fix breaks ten other things. Red Hat Developer named this "the whack-a-mole effect": *"AI is still just soooooo stupid and it will fix one thing but destroy 10 other things in your code."*
+- A fresh session has little institutional memory unless the repository encodes it.
+- Locally plausible choices can be produced across a large surface very quickly.
+- The same ambiguous question may receive a different answer in each session.
+- Green mocked tests can encourage confident claims about paths never exercised.
+- Review capacity, not typing speed, becomes the limiting resource.
 
-**The unfixable mess.** Developers describe codebases becoming genuinely unrescuable — "functions inside functions, conditions triggering other conditions" — to the point of abandonment. Not because the AI was incompetent, but because there were no structural constraints on where things could go, and the accumulated decisions became incoherent.
+The response is not more elaborate prompting. It is to make important decisions
+discoverable and enforceable: ownership documents, contracts, dependency checks,
+behavioral tests, immutable revisions, and observable release state.
 
-**The context window trap.** The widely identified problem is that agents "forget" between sessions. The widely offered solution is to periodically reset sessions or maintain a context file. Neither addresses the root cause: without persistent structure encoded in the codebase itself — interfaces, module boundaries, documented ownership — each new session starts from ignorance.
+## Standards, guidelines, and evidence
 
-**The command quality problem.** A less-discussed failure mode: when the human giving commands doesn't understand the architecture well enough to give architecturally correct instructions. The agent executes faithfully. The result is a feature built in the wrong place, which contradicts existing contracts, which requires a large refactor, which generates a PR too large to review properly. In a survey of 18 CTOs, 16 reported production disasters directly caused by AI-generated code. The AI wrote what it was asked. The commands were the problem.
+This guide uses three levels deliberately:
 
-### The Spectrum of Community Positions
+- **Standards** define properties that must remain true, such as authorization
+  being server-side or a deployment being bound to an exact artifact.
+- **Guidelines** offer useful defaults that may vary by stack, such as a directory
+  name or a suggested file-size threshold.
+- **Evidence** proves a standard for a particular revision: a failing-then-passing
+  test, an architecture check, a reviewed diff, a live probe, or a screenshot.
 
-The community has split into two camps, both of which miss something important:
+Documentation alone is not enforcement. A repeated or objectively detectable
+violation should become a linter, test, hook, or CI gate with an actionable error.
 
-**The anti-vibe-coding camp** (dominant in communities like r/programming and r/cscareerquestions) holds that vibe coding is fundamentally incompatible with professional engineering — a "red flag in interviews," evidence of undisciplined thinking, and incompatible with team collaboration. This position is wrong not because the criticisms are false, but because it treats the failure modes as inherent to AI-assisted development rather than as consequences of absent structure.
+## What this guide is not
 
-**The pro-vibe-coding camp** (dominant in builder and founder communities) holds that vibe coding is a superpower that democratizes software creation and makes traditional engineering concerns obsolete. This position is wrong because it has not yet experienced the three-month wall, or has not yet tried to hand the project to someone else, or has not yet needed to change something foundational.
+- **Not a prompt catalog.** Prompting can improve an interaction; it cannot supply
+  missing architecture or release evidence.
+- **Not tied to one agent or stack.** Examples are illustrative, not requirements.
+- **Not a mandate for maximum process.** Controls should be proportional to risk.
+- **Not a case for premature microservices.** Distribution adds operational and
+  consistency costs; it should follow measured need.
+- **Not a claim that every change needs the full suite.** Narrow CI is valuable when
+  an automated, fail-closed classifier can prove the change is narrow.
+- **Not a substitute for legal, security, accessibility, or domain expertise.**
+- **Not complete forever.** Repeated failures should evolve the standards and their
+  automated enforcement.
 
-The most accurate framing comes from Addy Osmani's distinction between "vibe coding" and "AI-assisted engineering": vibe coding is for throwaway experiments; AI-assisted engineering integrates AI into a structured development process with human oversight of architecture and review. This document extends that framing by providing the specific structural standards that make AI-assisted engineering concrete and actionable.
+## The core idea
 
-### What They All Miss
-
-Every guide and community discussion operates at the level of workflow habits and session management. They describe how to interact with an AI tool more effectively within whatever structure you already have. None of them describe what structure to build in the first place.
-
-Nobody names the architecture and explains why it's the right choice. Nobody defines interface contracts as the mechanism that closes architectural debates permanently. Nobody describes module isolation as the structural prevention of logic leakage and feature duplication. Nobody explains how PR reviews should feed back into automated enforcement rules. Nobody describes the development loop as a required sequence — spec first, interface second, tests third, implementation last — that determines the quality of everything after it.
-
-**The result: guidance that helps you prompt better today, but leaves you unprepared for month three.**
-
-A consistent pattern across all existing guidance: vibe coding is framed as appropriate for prototypes and MVPs, implying that production systems require returning to traditional methods. **This document rejects that framing.** Vibe coding is viable for production — when the right architectural standards are in place. The problem is not the AI. The problem is the absence of structure.
-
-### What This Document Is
-
-A set of numbered engineering standards covering:
-1. Which architecture to start with and why
-2. The exact module structure and the rationale for uniformity
-3. The required development loop: Spec → Interface → Tests → Implementation
-4. The difference between guidelines (advisory) and guardrails (structural enforcement)
-5. The human role: planning, commanding correctly, and converting PR patterns into automated rules
-6. How today's decisions enable microservice extraction later
-
-### What This Document Is Not
-
-- **A prompt engineering guide.** Prompting technique is a separate topic. This document addresses what the codebase looks like, not how you describe what you want.
-- **Tool-specific.** These standards apply to any AI coding assistant — Cursor, Claude Code, Copilot, or others.
-- **Anti-vibe-coding.** The goal is not to write everything by hand. The goal is to build a codebase where agents can work reliably at step 50, not just step 5.
-- **A guide for throwaway demos.** If you are building a prototype that will be discarded in a week, most of this is overkill. This is for projects that need to grow.
-- **Complete.** These standards reflect patterns proven effective in production systems. They are a starting point, not a ceiling.
+The most useful repository is one in which a fresh contributor can make a correct
+change without relying on private memory. Vibe coding becomes sustainable when
+architecture, expected behavior, and delivery state are properties of the system,
+not facts held by the person who happened to be present last week.

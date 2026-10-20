@@ -52,21 +52,27 @@ Without `order_by`, result ordering is non-deterministic across databases and ev
 
 ### 5. Ownership Checks on All Mutating Methods
 
-If a module has an ownership model (e.g., a facility has a `created_by` field), then every method that mutates data under that entity must verify ownership. Agents implementing sub-resource CRUD (courts within a facility, pricing rules within a facility) consistently forget to check whether the caller owns the parent entity.
+If a module has an ownership model (e.g., a workspace has a `created_by` field), then every method that mutates data under that entity must verify ownership. Agents implementing sub-resource CRUD (documents within a workspace, pricing rules within a workspace) consistently forget to check whether the caller owns the parent entity.
 
 ### 6. Never Hold a Database Transaction Open Across an External API Call
 
 ```python
-# ❌ DB locks held while waiting for Stripe
-wallet.balance += amount
+# ❌ DB locks held while waiting on an external provider
+account.reserve(amount)
 self._db.flush()
-stripe_id = stripe.charge(...)  # slow network call while DB row is locked
+provider.create_effect(...)  # slow network call while the row is locked
 
-# ✅ External call first, then DB write
-stripe_id = stripe.charge(...)  # no DB state open
-wallet.balance += amount
-self._db.flush()
+# ✅ Persist a durable intent in the transaction; deliver idempotently after commit
+with transaction():
+    account.reserve(amount)
+    outbox.add(operation_id, "create_effect", {"amount": amount})
+
+deliver_outbox_after_commit()
 ```
+
+The exact coordination pattern depends on the effect. Provider-first with an
+idempotency key and durable reconciliation, or an explicit compensating action, can
+also be correct. “External first” is not a complete safety rule by itself.
 
 ### 7. Interface Signatures Must Match Implementation Exactly
 

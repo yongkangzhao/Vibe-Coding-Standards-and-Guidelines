@@ -11,13 +11,13 @@ The failure mode is a phantom success: the optimistic flip shows "Saved," the re
 const [saved, setSaved] = useState(false);
 async function onSave(input: Patch) {
   setSaved(true);                 // phantom success — server hasn't agreed
-  await api.patch(`/courts/${id}`, input);   // if this throws, UI still says "Saved"
+  await api.patch(`/documents/${id}`, input);   // if this throws, UI still says "Saved"
 }
 
 // ✅ Await the truth; render the returned object; on failure leave state unchanged + show the error
 const mutation = useMutation({
-  mutationFn: (input: Patch) => api.patch<Court>(`/courts/${id}`, input),
-  onSuccess: (court) => queryClient.setQueryData(["court", id], court),  // server's row
+  mutationFn: (input: Patch) => api.patch<Document>(`/documents/${id}`, input),
+  onSuccess: (document) => queryClient.setQueryData(["document", id], document),  // server's row
   onError: (err) => toast.error(getMessage(err)),                        // honest failure
 });
 ```
@@ -30,14 +30,14 @@ Your local guess at the new state drifts from the server on the first edge case 
 
 ```ts
 // ❌ Local guess: assumes you know the post-mutation shape — you don't
-queryClient.setQueryData<Court[]>(["courts"], (list) =>
+queryClient.setQueryData<Document[]>(["documents"], (list) =>
   list?.map((c) => (c.id === id ? { ...c, ...patch } : c)),  // drifts from server truth
 );
 
 // ✅ Overwrite the entry with the server's object, then reconcile the list
-onSuccess: (court) => {
-  queryClient.setQueryData(["court", court.id], court);      // detail = server truth
-  queryClient.invalidateQueries({ queryKey: ["courts"] });   // list refetches truth
+onSuccess: (document) => {
+  queryClient.setQueryData(["document", document.id], document);      // detail = server truth
+  queryClient.invalidateQueries({ queryKey: ["documents"] });   // list refetches truth
 },
 ```
 
@@ -102,12 +102,12 @@ Permissions, prices, availability, and membership status come from the response.
 ```tsx
 // ❌ Client-derived price and permission — both drift from what the server actually does
 const price = basePriceCents * (1 - (isMember ? 0.1 : 0));     // server owns discounts
-{user.id === court.ownerId && <EditButton />}                  // server owns the permission
+{user.id === document.ownerId && <EditButton />}                  // server owns the permission
 
 // ✅ Render the authority the server returned; the client only displays it
-<Price cents={booking.priceCents} />                           // the price they WILL be charged
-{booking.canEdit && <EditButton />}                            // the server's decision
-{booking.canCancel ? <CancelButton /> : null}
+<Price cents={order.priceCents} />                           // the price they WILL be charged
+{order.canEdit && <EditButton />}                            // the server's decision
+{order.canCancel ? <CancelButton /> : null}
 ```
 
 If a needed field (`priceCents`, `canEdit`, `availableSlots`) isn't in the response, the fix is a server contract that returns it — file the endpoint, don't compute it here.
@@ -119,7 +119,7 @@ The client can't enforce optimistic locking, but it must participate: send the v
 ```tsx
 const save = useMutation({
   mutationFn: (slots: Slot[]) =>
-    api.put(`/courts/${id}/availability`, { version: loadedVersion, slots }),
+    api.put(`/documents/${id}/availability`, { version: loadedVersion, slots }),
   onSuccess: (fresh) => queryClient.setQueryData(["availability", id], fresh),
   onError: (err) => {
     if (isConflict(err) /* 409 */) {

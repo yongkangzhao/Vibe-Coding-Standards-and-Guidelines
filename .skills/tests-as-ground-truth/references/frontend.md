@@ -20,7 +20,8 @@ src/features/task/
 └── README.md
 ```
 
-One concern per file; keep each under ~500 lines and split when it grows (pure refactor — same test count, same results).
+Keep one cohesive concern per file. Use a repository-specific ratcheting budget and
+split when size or fixture coupling impairs navigation; preserve test count and results.
 
 ## Render the real component, real-ish network via MSW
 

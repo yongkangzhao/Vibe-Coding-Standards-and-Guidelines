@@ -71,11 +71,11 @@ When a hand-written type is replaced by a generated/canonical one, migrate every
 
 ```ts
 // ❌ Shadow type kept alongside the generated one — they will diverge
-interface Booking { id: string; price: number; }        // hand-written, stale
-import type { BookingResponse } from "@shared/types/generated"; // canonical
+interface Order { id: string; price: number; }        // hand-written, stale
+import type { OrderResponse } from "@shared/types/generated"; // canonical
 
 // ✅ One source of truth; the hand-written shadow is deleted, all sites migrated
-import type { BookingResponse } from "@shared/types/generated";
+import type { OrderResponse } from "@shared/types/generated";
 ```
 
-Accept that this touches many files at once — that batch is the migration. A `// TODO: migrate later` on the old type is how you end up with two `Booking`s a year from now.
+Accept that this touches many files at once — that batch is the migration. A `// TODO: migrate later` on the old type is how you end up with two `Order`s a year from now.

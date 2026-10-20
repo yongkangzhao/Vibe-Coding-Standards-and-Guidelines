@@ -1,6 +1,6 @@
 ---
 name: tests-as-ground-truth
-description: Treats tests as the machine-readable definition of correct behavior and insists they run against production-equivalent infrastructure, not substitutes. Use this when writing or reviewing tests, choosing a test database (real engine vs in-memory SQLite), setting up test fixtures or CI, deciding what to mock, rendering components under test (Testing Library vs shallow render), wiring MSW or a network layer, or organizing/splitting test files — for both backend services and frontend components, even if the user doesn't say "tests as ground truth."
+description: Treats tests as the machine-readable definition of behavior and matches each claim to the cheapest realistic test layer that can prove it. Use this when writing or reviewing tests, choosing a database fixture, diagnosing flakes or shared state, defining golden journeys, deciding what to mock, or organizing CI feedback.
 ---
 
 # Tests as Ground Truth
@@ -13,7 +13,7 @@ description: Treats tests as the machine-readable definition of correct behavior
 - Setting up test fixtures, `conftest.py`, CI test runners, or a disposable database container.
 - Deciding what to mock: which seams are legitimate to stub vs. the unit you must run for real.
 - Frontend: choosing `render` vs shallow render, wiring MSW or a network mock, testing a component's real DOM output.
-- A test file is creeping past ~500 lines, or tests are scattered without a predictable home.
+- A test file exceeds the repository's health budget, or tests are scattered without a predictable home.
 - Reviewing a PR where green tests give you a vague unease that nothing real was exercised.
 
 ## The standards
@@ -27,7 +27,7 @@ test "assigning to a missing user is rejected":
     expect( assign(task.id, "ghost-id") ) raises UserNotFound
 ```
 
-**Run against your production engine, not a substitute.** A substitute database still catches ordinary logic errors — but it gives false confidence about exactly the engine-dependent behavior it cannot reproduce: row-level locking (`SELECT ... FOR UPDATE` silently ignored), native UUID/array/JSON types, partial indexes, constraint firing, concurrency. The agent sees green at machine speed and ships the bug. Use a disposable, throwaway container of the real engine per test session — destroyed after, never the live production database.
+**Match the infrastructure to the claim.** Pure logic tests should stay fast. Persistence, migration, constraint, locking, and concurrency claims must run against a disposable instance of the production database engine; an in-memory substitute cannot prove those semantics. Never use a live production database for tests.
 
 **Mock only across module/interface seams — never the unit under test.** Stubbing a *neighbor service* at its interface (the notification service from a task test) is exactly what interface-first DI is for: you test one module against its neighbors' contracts. But never substitute the storage engine underneath the module you are testing, and never mock the component or function you are actually asserting on.
 ```
@@ -48,15 +48,21 @@ modules/<name>/tests/
   test_security_<name>.py     # exploit / security tests
 ```
 
-**No test file over ~500 lines.** When it grows, split by domain — a pure refactor: same test count, same pass/fail before and after, no behavioral change. Oversized test files are where "just add it here" accumulates fastest and where agents lose the thread.
+**Use ratcheting test-health budgets.** File length is a diagnostic, not a universal law. Record a local baseline for size, fixture coupling, duration, and flake rate; prevent regression; then split by cohesive behavior while preserving test count and outcomes.
+
+**Fixtures own their state.** Use unique test-owned identifiers, remove only what the fixture created, inject time/randomness when behavior depends on them, and close sessions/tasks/files/sockets within bounded cleanup. Never depend on test order or repair a flake with an arbitrary sleep or blind retry.
+
+**Keep a few golden journeys.** Critical cross-module user and money flows need stable production-equivalent journeys. Seed only minimum external identity and use real application actions to create later preconditions; do not manufacture impossible internal state.
 
 ## Checklist
 - [ ] Tests exist and were written before (or alongside) the implementation, and assert observable behavior.
-- [ ] Backend tests run against the **same engine** as production via a disposable container — no in-memory SQLite standing in for Postgres.
+- [ ] Engine-specific backend claims run against the production engine via a disposable instance; pure unit tests remain fast.
 - [ ] The storage engine and the unit under test are real; only cross-module/interface seams are mocked.
 - [ ] Frontend tests render the real component (Testing Library) and use MSW for network, not a stubbed unit.
 - [ ] Tests live in the module's `tests/` dir, one domain per file, named `test_service_<domain>` (or framework analog).
-- [ ] No single test file exceeds ~500 lines; splits preserved test count and pass/fail exactly.
+- [ ] Fixtures own and clean up their state; time/order/randomness are controlled where relevant.
+- [ ] Critical cross-module outcomes have a small, stable set of golden journeys.
+- [ ] Test-health budgets prevent new size, duration, coupling, or flake regressions.
 
 ## What breaks without this
 - **Plausible-but-wrong code ships.** With no tests, the agent has no feedback loop; it returns something that compiles and looks right, and correctness is unknowable without running the whole system by hand.
